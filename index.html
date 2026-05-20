@@ -673,21 +673,28 @@
     /* Hide minimap on mobile */
     #minimap { display: none; }
 
-    /* Dialogue and choices - compact, above joystick */
+    /* Dialogue and choices - compact, scrollable, positioned in middle */
     #dialogue {
-      width: 92%; max-width: none; font-size: 12px;
-      padding: 12px 14px; bottom: 160px; border-radius: 10px;
+      width: 88%; max-width: none; font-size: 12px;
+      padding: 10px 12px; border-radius: 10px;
+      bottom: auto; top: 50%; transform: translate(-50%, -50%);
+      max-height: 40vh; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     #dialogueSpeaker { font-size: 10px; margin-bottom: 3px; }
     #dialogueTrust { font-size: 9px; }
-    #dialogue button { padding: 6px 14px; font-size: 12px; }
+    #dialogueText { font-size: 12px; line-height: 1.4; margin-bottom: 6px; }
+    #dialogue button { padding: 6px 14px; font-size: 11px; }
 
     #choices {
-      width: 92%; max-width: none; font-size: 12px;
-      padding: 12px 14px; bottom: 160px; border-radius: 10px;
+      width: 88%; max-width: none; font-size: 12px;
+      padding: 10px 12px; border-radius: 10px;
+      bottom: auto; top: 50%; transform: translate(-50%, -50%);
+      max-height: 55vh; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
-    #choicesTitle { font-size: 11px; margin-bottom: 8px; }
-    .choice-btn { padding: 9px 10px; font-size: 11px; margin-bottom: 6px; }
+    #choicesTitle { font-size: 11px; margin-bottom: 6px; }
+    .choice-btn { padding: 8px 10px; font-size: 11px; margin-bottom: 5px; }
 
     /* Buildings smaller text on mobile */
     .building { font-size: 11px; padding: 8px; }
