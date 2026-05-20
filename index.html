@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Mission Roads: Turkey</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { touch-action: none; overscroll-behavior: none; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    background: #1a1a2e;
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    position: fixed; inset: 0;
+  }
+  #game { width: 100vw; height: 100vh; position: relative; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+  /* HUD */
+  #hud {
+    position: absolute; top: 12px; left: 12px; z-index: 10;
+    background: rgba(10,10,30,0.88); color: #eee;
+    padding: 14px 18px; border-radius: 12px; min-width: 240px;
+    border: 1px solid rgba(255,255,255,0.1);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 14px; line-height: 1.7;
+  }
+  #hud strong { color: #ffd166; }
+  #hud hr { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 8px 0; }
+  #mission { color: #a8dadc; font-style: italic; font-size: 13px; }
+
+  #timeOfDay {
+    position: absolute; top: 12px; right: 12px; z-index: 10;
+    background: rgba(10,10,30,0.88); color: #ffd166;
+    padding: 10px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 14px; font-weight: bold;
+  }
+
+  /* Dialogue */
+  #dialogue {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    width: 75%; max-width: 700px;
+    background: rgba(10,10,30,0.92); color: #fff;
+    padding: 20px 24px; border-radius: 14px; z-index: 20; display: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-size: 15px; line-height: 1.6;
+  }
+  #dialogueText { margin-bottom: 4px; }
+  #dialogueSpeaker {
+    color: #ffd166; font-weight: bold; margin-bottom: 6px;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  #dialogueTrust { font-size: 11px; color: #a8dadc; margin-top: 6px; }
+
+  /* Choices */
+  #choices {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    width: 75%; max-width: 700px;
+    background: rgba(10,10,30,0.92); color: #fff;
+    padding: 20px 24px; border-radius: 14px; z-index: 25; display: none;
+    border: 1px solid rgba(255,255,255,0.15); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  #choicesTitle { color: #ffd166; font-weight: bold; margin-bottom: 12px; font-size: 14px; }
+  .choice-btn {
+    display: block; width: 100%; text-align: left;
+    padding: 10px 14px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; color: #fff; font-size: 14px; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .choice-btn:hover { background: rgba(255,209,102,0.2); border-color: #ffd166; }
+  .choice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .choice-btn .lock-icon { color: #ef476f; margin-right: 6px; }
+
+  /* Buttons */
+  button {
+    padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer;
+    font-weight: bold; font-size: 14px; transition: transform 0.1s, background 0.2s;
+  }
+  button:hover { transform: scale(1.03); }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background: #ffd166; color: #1a1a2e; }
+  .btn-secondary { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+
+  /* World - Tiled streets & painted background */
+  #world {
+    width: 2800px; height: 1600px; position: relative;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px),
+      linear-gradient(180deg, #e8d5b0 0%, #d4b896 40%, #c9ad85 100%);
+    image-rendering: pixelated;
+  }
+  /* Cobblestone texture overlay */
+  #world::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 8px 6px at 10px 10px, rgba(0,0,0,0.04) 50%, transparent 50%),
+      radial-gradient(ellipse 8px 6px at 30px 25px, rgba(0,0,0,0.03) 50%, transparent 50%);
+    background-size: 40px 40px;
+    opacity: 0.6;
+  }
+
+  /* Buildings - Pixel-art Turkish architecture */
+  .building {
+    position: absolute; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    color: white; font-weight: bold; text-align: center;
+    padding: 12px; font-size: 13px; cursor: default;
+    image-rendering: pixelated;
+    transition: box-shadow 0.3s, transform 0.2s;
+  }
+  .building::before {
+    content: ''; position: absolute; inset: 0;
+    border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.1);
+  }
+  .building-label { font-size: 10px; opacity: 0.85; margin-top: 3px; font-weight: normal; letter-spacing: 0.3px; }
+  .building.active-nearby {
+    box-shadow: 0 0 24px rgba(255,209,102,0.7), 0 6px 20px rgba(0,0,0,0.4);
+    transform: translateY(-2px);
+  }
+  /* Building shadow */
+  .building::after {
+    content: ''; position: absolute; bottom: -8px; left: 10%; right: 10%;
+    height: 10px; background: rgba(0,0,0,0.15); border-radius: 50%;
+    filter: blur(4px); z-index: -1;
+  }
+
+  /* Tea Shop - Ottoman wooden house */
+  #teaShop {
+    width: 200px; height: 160px; left: 250px; top: 180px;
+    background:
+      linear-gradient(180deg, #5C3317 0%, #5C3317 8px, transparent 8px),
+      repeating-linear-gradient(90deg, #8B5E3C 0px, #8B5E3C 18px, #7A4E2C 18px, #7A4E2C 20px),
+      linear-gradient(180deg, #A0522D, #8B4513);
+    border: 3px solid #3E2210;
+    border-radius: 4px 4px 2px 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  #teaShop::before {
+    background:
+      linear-gradient(180deg, rgba(92,51,23,0.9) 0%, rgba(92,51,23,0.9) 12px, transparent 12px),
+      repeating-linear-gradient(90deg, transparent 0px, transparent 40px, rgba(255,200,100,0.3) 40px, rgba(255,200,100,0.3) 50px, transparent 50px, transparent 90px);
+    border-radius: inherit;
+  }
+
+  /* Apartment - Modern Turkish concrete block */
+  #apartment {
+    width: 180px; height: 190px; left: 300px; top: 500px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0px, transparent 36px, rgba(0,0,0,0.1) 36px, rgba(0,0,0,0.1) 38px),
+      repeating-linear-gradient(90deg, transparent 0px, transparent 28px, rgba(0,0,0,0.05) 28px, rgba(0,0,0,0.05) 30px),
+      linear-gradient(180deg, #6a6a8a, #5a5a7a, #4a4a6a);
+    border: 3px solid #3a3a5a;
+    border-radius: 3px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  }
+  #apartment::before {
+    background:
+      repeating-linear-gradient(90deg, rgba(200,220,255,0.2) 8px, rgba(200,220,255,0.2) 22px, transparent 22px, transparent 30px);
+    border-radius: inherit;
+  }
+
+  /* Language School - Blue tiled Ottoman school */
+  #languageSchool {
+    width: 250px; height: 170px; left: 1100px; top: 180px;
+    background:
+      linear-gradient(180deg, #154360 0%, #154360 14px, transparent 14px),
+      repeating-linear-gradient(90deg, #1a6fa8 0px, #1a6fa8 24px, #1565a0 24px, #1565a0 26px),
+      linear-gradient(180deg, #2980b9, #1a5276);
+    border: 3px solid #0d3b5e;
+    border-radius: 6px 6px 2px 2px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+  }
+  #languageSchool::before {
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 12px, transparent 12px, transparent 24px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 12px, transparent 12px, transparent 24px);
+    border-radius: inherit;
+  }
+
+  /* Community Center - Green with arched windows */
+  #communityCenter {
+    width: 250px; height: 190px; left: 1700px; top: 500px;
+    background:
+      linear-gradient(180deg, #155724 0%, #155724 16px, transparent 16px),
+      linear-gradient(180deg, #28a745, #1e7e34);
+    border: 3px solid #0d3d15;
+    border-radius: 8px 8px 2px 2px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+  }
+  #communityCenter::before {
+    background:
+      radial-gradient(ellipse 20px 28px at 50px 80px, rgba(255,255,255,0.15) 50%, transparent 50%),
+      radial-gradient(ellipse 20px 28px at 125px 80px, rgba(255,255,255,0.15) 50%, transparent 50%),
+      radial-gradient(ellipse 20px 28px at 200px 80px, rgba(255,255,255,0.15) 50%, transparent 50%);
+    border-radius: inherit;
+  }
+
+  /* Mosque/Neighborhood - Ottoman mosque silhouette */
+  #mosque {
+    width: 240px; height: 220px; left: 600px; top: 1080px;
+    background:
+      radial-gradient(ellipse 60px 60px at 120px 20px, #7b3fa0 50%, transparent 50%),
+      linear-gradient(180deg, transparent 50px, #6c3483 50px);
+    border: 3px solid #4a235a;
+    border-radius: 50% 50% 4px 4px / 20% 20% 4px 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  }
+  #mosque::before {
+    background:
+      linear-gradient(180deg, transparent 0px, transparent 10px, rgba(255,215,0,0.3) 10px, rgba(255,215,0,0.3) 12px, transparent 12px),
+      radial-gradient(circle 3px at 120px 8px, #ffd700 50%, transparent 50%);
+    border-radius: inherit;
+  }
+
+  /* Bazaar - Red Ottoman market with awnings */
+  #bazaar {
+    width: 290px; height: 150px; left: 1100px; top: 500px;
+    background:
+      repeating-linear-gradient(90deg, #c0392b 0px, #c0392b 28px, #a93226 28px, #a93226 30px),
+      linear-gradient(180deg, #e74c3c, #c0392b);
+    border: 3px solid #7b241c;
+    border-radius: 2px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+  }
+  #bazaar::before {
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(200,50,30,0.9) 0px, rgba(200,50,30,0.9) 56px,
+        rgba(255,255,255,0.15) 56px, rgba(255,255,255,0.15) 58px);
+    border-radius: inherit;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 30%, 95% 35%, 85% 30%, 75% 35%, 65% 30%, 55% 35%, 45% 30%, 35% 35%, 25% 30%, 15% 35%, 5% 30%, 0% 35%);
+  }
+
+  /* Park - Lush green with trees */
+  #park {
+    width: 310px; height: 260px; left: 1700px; top: 100px;
+    background:
+      radial-gradient(circle 30px at 60px 60px, #1a8c3a 50%, transparent 50%),
+      radial-gradient(circle 25px at 180px 50px, #1f9e40 50%, transparent 50%),
+      radial-gradient(circle 35px at 260px 80px, #1a8c3a 50%, transparent 50%),
+      radial-gradient(circle 20px at 100px 180px, #22a848 50%, transparent 50%),
+      linear-gradient(180deg, #2ecc71, #27ae60);
+    border: 3px solid #1e8449;
+    border-radius: 12px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.3);
+    opacity: 0.9;
+  }
+
+  /* Refugee Center - Warm yellow with humanitarian cross */
+  #refugeeCenter {
+    width: 230px; height: 170px; left: 2350px; top: 500px;
+    background:
+      linear-gradient(180deg, #9a7d0a 0%, #9a7d0a 14px, transparent 14px),
+      linear-gradient(180deg, #f1c40f, #d4ac0d);
+    border: 3px solid #7d6608;
+    border-radius: 4px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+  }
+  #refugeeCenter::before {
+    background:
+      linear-gradient(90deg, transparent 45%, rgba(255,0,0,0.2) 45%, rgba(255,0,0,0.2) 55%, transparent 55%),
+      linear-gradient(0deg, transparent 40%, rgba(255,0,0,0.2) 40%, rgba(255,0,0,0.2) 60%, transparent 60%);
+    border-radius: inherit;
+  }
+
+  /* Hanging lanterns on buildings */
+  .building .lantern {
+    position: absolute; top: -12px; font-size: 12px;
+    animation: lanternSwing 3s ease-in-out infinite;
+  }
+  .building .lantern:nth-child(1) { left: 15%; }
+  .building .lantern:nth-child(2) { right: 15%; animation-delay: 1s; }
+  @keyframes lanternSwing {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+  }
+
+  /* Mosque minaret silhouettes (decorative) */
+  .minaret {
+    position: absolute; width: 12px; background: #5a2d82;
+    border-radius: 6px 6px 2px 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .minaret::before {
+    content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    width: 6px; height: 10px; background: #5a2d82;
+    border-radius: 50% 50% 0 0;
+  }
+  .minaret::after {
+    content: '☪'; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 8px; color: #ffd700;
+  }
+
+  /* Player - Animated Character */
+  .character {
+    position: absolute; z-index: 5; width: 44px; height: 56px;
+  }
+  .char-shadow {
+    position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+    width: 32px; height: 10px; background: rgba(0,0,0,0.35);
+    border-radius: 50%; filter: blur(2px);
+  }
+  .char-body {
+    position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+    width: 28px; height: 36px; border-radius: 6px 6px 4px 4px;
+    transition: transform 0.08s;
+  }
+  .char-head {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.3);
+  }
+  .char-feet {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 24px; height: 8px; display: flex; justify-content: space-between;
+  }
+  .char-foot {
+    width: 10px; height: 8px; border-radius: 3px;
+    background: #333; transition: transform 0.12s;
+  }
+
+  /* Player specific */
+  #player .char-body { background: #4a90d9; }
+  #player .char-head { background: #fdd; }
+  #player .char-cross {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: #fff; font-weight: bold;
+  }
+
+  /* Walking animation */
+  .walking .char-foot:nth-child(1) { animation: stepL 0.3s infinite alternate; }
+  .walking .char-foot:nth-child(2) { animation: stepR 0.3s infinite alternate; }
+  .walking .char-body { animation: bobWalk 0.3s infinite alternate; }
+  .walking .char-shadow { animation: shadowPulse 0.3s infinite alternate; }
+  @keyframes stepL { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+  @keyframes stepR { from { transform: translateY(-4px); } to { transform: translateY(0); } }
+  @keyframes bobWalk { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-2px); } }
+  @keyframes shadowPulse { from { width: 32px; opacity: 0.35; } to { width: 28px; opacity: 0.25; } }
+
+  /* Idle animation */
+  .idle .char-body { animation: breathe 2s infinite ease-in-out; }
+  .idle .char-shadow { animation: shadowBreathe 2s infinite ease-in-out; }
+  @keyframes breathe { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-1px); } }
+  @keyframes shadowBreathe { 0%,100% { width: 32px; } 50% { width: 30px; } }
+
+  /* Direction indicators */
+  .facing-left .char-body { border-radius: 4px 6px 4px 6px; }
+  .facing-right .char-body { border-radius: 6px 4px 6px 4px; }
+
+  /* NPC specific colors */
+  .npc-char { cursor: default; }
+  .npc-char .char-body { background: #ffb703; }
+  .npc-char .char-head { background: #ffe0b2; }
+  .npc-char .npc-emoji {
+    position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; z-index: 2;
+  }
+  .npc-char .npc-name {
+    position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: #fff; background: rgba(0,0,0,0.6);
+    padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .npc-char:hover .npc-name, .npc-char.nearby .npc-name { opacity: 1; }
+  .npc-char.talked-today { opacity: 0.6; }
+
+  /* NPC trust indicator */
+  .npc-trust-bar {
+    position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    width: 30px; height: 3px; background: rgba(0,0,0,0.3); border-radius: 2px;
+    overflow: hidden;
+  }
+  .npc-trust-fill { height: 100%; background: #ffd166; border-radius: 2px; transition: width 0.5s; }
+
+  /* Footstep particles */
+  .footstep {
+    position: absolute; width: 6px; height: 6px;
+    background: rgba(0,0,0,0.15); border-radius: 50%;
+    pointer-events: none; animation: footFade 0.8s forwards;
+  }
+  @keyframes footFade { from { opacity: 0.4; transform: scale(1); } to { opacity: 0; transform: scale(0.3); } }
+
+  /* Roads - Tiled cobblestone streets */
+  .road {
+    position: absolute; border-radius: 2px;
+    background:
+      repeating-linear-gradient(90deg, #6b6b6b 0px, #6b6b6b 18px, #5a5a5a 18px, #5a5a5a 20px),
+      repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(0,0,0,0.08) 8px, rgba(0,0,0,0.08) 10px),
+      #777;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .road::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0px, transparent 38px, rgba(255,255,0,0.15) 38px, rgba(255,255,0,0.15) 42px);
+    border-radius: inherit;
+  }
+  .road-h { height: 60px; }
+  .road-v { width: 60px; }
+
+  /* Intro */
+  #intro {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: white; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 50;
+    text-align: center; padding: 30px;
+  }
+  #intro h1 {
+    font-size: 2.8rem; margin-bottom: 8px;
+    background: linear-gradient(90deg, #ffd166, #ef476f);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  #intro h2 { font-size: 1.1rem; color: #a8dadc; font-weight: normal; margin-bottom: 20px; }
+  #intro p { max-width: 550px; line-height: 1.7; color: #ccc; margin-bottom: 10px; }
+  .tip { color: #ffd166; font-size: 13px; margin-top: 16px; }
+  #intro button { margin-top: 24px; padding: 14px 36px; font-size: 16px; }
+
+  /* Journal */
+  #journal {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+    background: rgba(10,10,30,0.88); color: #eee; padding: 10px 18px;
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 13px; display: none;
+    max-width: 400px; text-align: center;
+  }
+  #journal .journal-entry { color: #a8dadc; animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* End screen */
+  #endScreen {
+    position: absolute; inset: 0; background: rgba(10,10,30,0.95); color: white;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 60; text-align: center; padding: 30px;
+  }
+  #endScreen h2 { font-size: 2rem; color: #ffd166; margin-bottom: 16px; }
+  #endScreen p { max-width: 500px; line-height: 1.7; color: #ccc; margin-bottom: 8px; }
+  .stat-summary { margin: 20px 0; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+  .stat-row { display: flex; justify-content: space-between; padding: 4px 0; min-width: 250px; }
+  .stat-row span:first-child { color: #a8dadc; }
+  .stat-row span:last-child { color: #ffd166; font-weight: bold; }
+
+  /* Progress bars */
+  .progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .fill-energy { background: #06d6a0; }
+  .fill-language { background: #118ab2; }
+  .fill-trust { background: #ffd166; }
+  .fill-faith { background: #ef476f; }
+
+  /* Minimap */
+  #minimap {
+    position: absolute; bottom: 12px; right: 12px; width: 160px; height: 90px;
+    background: rgba(10,10,30,0.8); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; z-index: 10; overflow: hidden;
+  }
+  #minimapDot { width: 6px; height: 6px; background: #ffd166; border-radius: 50%; position: absolute; }
+
+  /* Economy HUD */
+  #economyHud {
+    position: absolute; top: 12px; right: 12px; z-index: 10;
+    background: rgba(10,10,30,0.88); color: #eee; padding: 12px 16px;
+    border-radius: 12px; min-width: 180px;
+    border: 1px solid rgba(255,255,255,0.1); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    font-size: 13px; line-height: 1.8; margin-top: 44px;
+  }
+  #economyHud strong { color: #06d6a0; }
+  .money-positive { color: #06d6a0; }
+  .money-negative { color: #ef476f; }
+  .money-warning { color: #ef476f; font-weight: bold; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* Budget Modal */
+  #budgetModal {
+    position: absolute; inset: 0; background: rgba(10,10,30,0.95); color: white;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 55; text-align: center; padding: 30px; overflow-y: auto;
+  }
+  #budgetModal h2 { font-size: 1.8rem; color: #ffd166; margin-bottom: 6px; }
+  #budgetModal h3 { font-size: 1rem; color: #a8dadc; font-weight: normal; margin-bottom: 20px; }
+  .budget-container { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; max-width: 800px; }
+  .budget-section { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px 20px; min-width: 220px; text-align: left; }
+  .budget-section h4 { color: #ffd166; margin-bottom: 10px; font-size: 14px; }
+  .budget-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .budget-row:last-child { border-bottom: none; }
+  .budget-row .label { color: #a8dadc; }
+  .budget-row .amount { font-weight: bold; }
+  .budget-total { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; }
+  .budget-decisions { margin-top: 20px; max-width: 500px; }
+  .budget-decisions h4 { color: #ffd166; margin-bottom: 12px; }
+  .budget-choice { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+  .budget-choice:hover { background: rgba(255,209,102,0.1); border-color: #ffd166; }
+  .budget-choice.selected { background: rgba(6,214,160,0.15); border-color: #06d6a0; }
+  .budget-choice .choice-info { text-align: left; }
+  .budget-choice .choice-name { font-weight: bold; font-size: 13px; }
+  .budget-choice .choice-desc { font-size: 11px; color: #a8dadc; margin-top: 2px; }
+  .budget-choice .choice-cost { font-weight: bold; font-size: 14px; color: #ffd166; }
+  #budgetBalance { margin-top: 16px; font-size: 16px; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+
+  /* Donation notification */
+  #donationNotif {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(6,214,160,0.95); color: #1a1a2e; padding: 20px 30px;
+    border-radius: 14px; z-index: 56; display: none; text-align: center;
+    font-weight: bold; font-size: 16px; box-shadow: 0 8px 32px rgba(6,214,160,0.3);
+  }
+
+  /* Stat Screen */
+  #statScreen {
+    position: absolute; inset: 0; background: rgba(10,10,30,0.95); color: white;
+    display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    z-index: 54; padding: 40px 30px; overflow-y: auto;
+  }
+  #statScreen h2 { font-size: 1.6rem; color: #ffd166; margin-bottom: 6px; }
+  #statScreen h3 { font-size: 0.95rem; color: #a8dadc; font-weight: normal; margin-bottom: 20px; }
+  .stat-npc-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px; max-width: 900px; width: 100%;
+  }
+  .stat-npc-card {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 16px; text-align: left;
+  }
+  .stat-npc-card .npc-card-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .stat-npc-card .npc-card-emoji {
+    font-size: 24px; width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stat-npc-card .npc-card-name { font-weight: bold; font-size: 15px; }
+  .stat-npc-card .npc-card-desc { font-size: 11px; color: #888; }
+  .stat-npc-card .npc-card-trust-bar {
+    height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;
+    overflow: hidden; margin: 8px 0;
+  }
+  .stat-npc-card .npc-card-trust-fill {
+    height: 100%; border-radius: 4px; transition: width 0.5s;
+    background: linear-gradient(90deg, #ef476f, #ffd166, #06d6a0);
+  }
+  .stat-npc-card .npc-card-stats {
+    font-size: 12px; color: #a8dadc; display: flex; justify-content: space-between;
+  }
+  .stat-npc-card .npc-card-tier {
+    font-size: 11px; color: #ffd166; margin-top: 6px; font-style: italic;
+  }
+  .stat-npc-card .npc-card-memory {
+    font-size: 11px; color: #888; margin-top: 6px; max-height: 40px; overflow: hidden;
+  }
+  #statScreenClose { margin-top: 20px; padding: 12px 30px; }
+
+  /* Stat button in HUD */
+  #statBtn {
+    margin-top: 6px; padding: 5px 10px; font-size: 11px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: #a8dadc; border-radius: 6px; cursor: pointer; width: 100%;
+  }
+  #statBtn:hover { background: rgba(255,209,102,0.2); border-color: #ffd166; color: #ffd166; }
+
+  /* Weather & Season Overlay */
+  #weatherOverlay {
+    position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden;
+  }
+  .rain-drop {
+    position: absolute; width: 2px; background: rgba(174,194,224,0.6);
+    border-radius: 0 0 2px 2px; animation: rainFall linear infinite;
+  }
+  @keyframes rainFall { from { transform: translateY(-20px); } to { transform: translateY(1600px); } }
+  .snow-flake {
+    position: absolute; width: 6px; height: 6px; background: white;
+    border-radius: 50%; opacity: 0.8; animation: snowFall linear infinite;
+  }
+  @keyframes snowFall { from { transform: translateY(-20px) rotate(0deg); } to { transform: translateY(1600px) rotate(360deg); } }
+  .heat-shimmer {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+    background: linear-gradient(transparent, rgba(255,200,50,0.08));
+    animation: shimmer 3s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+
+  /* Season indicator */
+  #seasonHud {
+    position: absolute; bottom: 12px; left: 12px; z-index: 10;
+    background: rgba(10,10,30,0.88); color: #eee; padding: 8px 14px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 12px;
+  }
+  #seasonHud .season-icon { font-size: 16px; margin-right: 4px; }
+
+  /* Ramadan decorations */
+  .ramadan-light {
+    position: absolute; width: 12px; height: 18px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: lanternGlow 2s ease-in-out infinite alternate;
+  }
+  @keyframes lanternGlow { from { opacity: 0.6; transform: scale(1); } to { opacity: 1; transform: scale(1.1); } }
+  .eid-banner {
+    position: absolute; background: rgba(255,215,0,0.3); border: 2px solid gold;
+    border-radius: 6px; padding: 4px 10px; font-size: 10px; color: gold;
+    font-weight: bold; white-space: nowrap;
+  }
+
+  /* Ambient entities */
+  .ambient-entity {
+    position: absolute; font-size: 16px; pointer-events: none; z-index: 4;
+    transition: none;
+  }
+  .ambient-entity .entity-shadow {
+    position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+    width: 14px; height: 5px; background: rgba(0,0,0,0.2);
+    border-radius: 50%; filter: blur(1px);
+  }
+  /* Bus */
+  .bus { font-size: 22px; }
+  /* Cat */
+  .cat { font-size: 14px; }
+  .cat.sitting { animation: catIdle 3s ease-in-out infinite; }
+  @keyframes catIdle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  /* Scooter */
+  .scooter { font-size: 18px; }
+  /* Pedestrian */
+  .pedestrian { font-size: 15px; }
+  /* Vendor */
+  .vendor { font-size: 16px; }
+  /* Soccer kids */
+  .soccer-group { font-size: 14px; }
+  .soccer-ball {
+    position: absolute; font-size: 10px;
+    animation: ballBounce 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes ballBounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+  /* Market crowd */
+  .crowd-person { font-size: 13px; opacity: 0.7; }
+
+  /* ===== MOBILE TOUCH CONTROLS ===== */
+  #mobileControls {
+    display: none; position: absolute; inset: 0; z-index: 30;
+    pointer-events: none;
+  }
+  /* Show on touch devices */
+  @media (hover: none) and (pointer: coarse) {
+    #mobileControls { display: block; }
+    #hud { font-size: 11px; min-width: 180px; padding: 10px 12px; line-height: 1.5; }
+    #economyHud { font-size: 11px; min-width: 140px; padding: 8px 12px; }
+    #timeOfDay { font-size: 12px; padding: 6px 12px; }
+    #seasonHud { font-size: 10px; padding: 6px 10px; }
+    #minimap { width: 100px; height: 56px; }
+    #dialogue { width: 90%; font-size: 13px; padding: 14px 16px; bottom: 140px; }
+    #choices { width: 90%; font-size: 13px; padding: 14px 16px; bottom: 140px; }
+    .choice-btn { padding: 12px 14px; font-size: 13px; }
+  }
+
+  /* Virtual Joystick */
+  #joystickArea {
+    position: absolute; bottom: 30px; left: 30px;
+    width: 140px; height: 140px; pointer-events: auto;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.2);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #joystickKnob {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(255,209,102,0.6);
+    border: 2px solid rgba(255,209,102,0.8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: none;
+  }
+
+  /* Action buttons (right side) */
+  #mobileButtons {
+    position: absolute; bottom: 30px; right: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+    pointer-events: auto;
+  }
+  .mobile-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 2px solid rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #fff;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-btn:active { background: rgba(255,209,102,0.3); transform: scale(0.9); }
+  .mobile-btn-small {
+    width: 44px; height: 44px; font-size: 16px;
+  }
+
+  /* iOS safe area adjustments */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    #joystickArea { bottom: calc(30px + env(safe-area-inset-bottom)); }
+    #mobileButtons { bottom: calc(30px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <!-- Intro Screen -->
+  <div id="intro">
+    <h1>Mission Roads: Turkey</h1>
+    <h2>A Day in the Life</h2>
+    <p>Experience the quiet, relational life of a Christian missionary in Turkey. Build friendships over tea, learn Turkish, serve refugees, and manage your finances.</p>
+    <p style="color:#a8dadc; font-size:13px;">Each person you meet has their own trust level. Invest time and they'll open up — invitations, deep conversations, and life change happen through patience.</p>
+    <p class="tip">🎮 Move: WASD or Arrow Keys &nbsp;|&nbsp; Interact: Walk into locations & people &nbsp;|&nbsp; Tab: Relationships</p>
+    <button class="btn-primary" onclick="startGame()">Begin Your Day</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div><strong>Day:</strong> <span id="day">1</span>/28 &nbsp; <strong>Time:</strong> <span id="timeSlot">Morning</span></div>
+    <div><strong>Energy:</strong> <span id="energy">100</span><div class="progress-bar"><div class="progress-fill fill-energy" id="energyBar" style="width:100%"></div></div></div>
+    <div><strong>Turkish:</strong> <span id="language">0</span>%<div class="progress-bar"><div class="progress-fill fill-language" id="langBar" style="width:0%"></div></div></div>
+    <div><strong>Community Trust:</strong> <span id="trust">0</span><div class="progress-bar"><div class="progress-fill fill-trust" id="trustBar" style="width:0%"></div></div></div>
+    <div><strong>Faith:</strong> <span id="faith">50</span><div class="progress-bar"><div class="progress-fill fill-faith" id="faithBar" style="width:50%"></div></div></div>
+    <div><strong>People Helped:</strong> <span id="helped">0</span></div>
+    <hr><div id="mission">Today's Goal: Meet people and serve the community.</div>
+    <button id="statBtn" onclick="openStatScreen()">📊 Relationships</button>
+  </div>
+
+  <div id="timeOfDay">☀️ Morning</div>
+
+  <!-- Economy HUD -->
+  <div id="economyHud">
+    <div><strong>💰 Lira:</strong> <span id="money">3000</span> ₺</div>
+    <div><strong>📅 Week:</strong> <span id="week">1</span> / 4</div>
+    <div style="font-size:11px; color:#888; margin-top:4px;">Rent due: End of month</div>
+    <div id="moneyWarning" style="display:none;" class="money-warning">⚠️ Low funds!</div>
+  </div>
+
+  <!-- Budget Modal -->
+  <div id="budgetModal">
+    <h2>📊 Monthly Budget</h2>
+    <h3 id="budgetWeekLabel">End of Week 1 — Financial Review</h3>
+    <div class="budget-container">
+      <div class="budget-section"><h4>📤 Expenses</h4>
+        <div class="budget-row"><span class="label">Rent</span><span class="amount money-negative" id="budgetRent">-1500 ₺</span></div>
+        <div class="budget-row"><span class="label">Food</span><span class="amount money-negative" id="budgetFood">-0 ₺</span></div>
+        <div class="budget-row"><span class="label">Transport</span><span class="amount money-negative" id="budgetTransport">-0 ₺</span></div>
+        <div class="budget-row"><span class="label">School</span><span class="amount money-negative" id="budgetSchool">-0 ₺</span></div>
+      </div>
+      <div class="budget-section"><h4>📥 Income</h4>
+        <div class="budget-row"><span class="label">English Teaching</span><span class="amount money-positive" id="budgetTeaching">+0 ₺</span></div>
+        <div class="budget-row"><span class="label">Donations</span><span class="amount money-positive" id="budgetDonations">+0 ₺</span></div>
+      </div>
+    </div>
+    <div class="budget-decisions"><h4>💡 Budgeting Decisions</h4><div id="budgetChoicesContainer"></div></div>
+    <div id="budgetBalance"></div>
+    <button class="btn-primary" onclick="confirmBudget()">Confirm & Continue</button>
+  </div>
+
+  <div id="donationNotif"></div>
+  <div id="journal"><div class="journal-entry" id="journalText"></div></div>
+
+  <!-- Dialogue -->
+  <div id="dialogue">
+    <div id="dialogueSpeaker"></div>
+    <div id="dialogueText"></div>
+    <div id="dialogueTrust"></div>
+    <button class="btn-primary" onclick="closeDialogue()">Continue</button>
+  </div>
+
+  <!-- Choices -->
+  <div id="choices"><div id="choicesTitle"></div><div id="choicesContainer"></div></div>
+
+  <!-- Stat Screen -->
+  <div id="statScreen">
+    <h2>📊 Relationships</h2>
+    <h3>Your connections with people in the community</h3>
+    <div class="stat-npc-grid" id="statNpcGrid"></div>
+    <button class="btn-primary" id="statScreenClose" onclick="closeStatScreen()">Close</button>
+  </div>
+
+  <!-- End Screen -->
+  <div id="endScreen">
+    <h2>Month Complete</h2>
+    <p>You've spent a month building relationships, learning the language, serving the community, and managing your finances in Turkey.</p>
+    <div class="stat-summary" id="finalStats"></div>
+    <p id="endMessage"></p>
+    <button class="btn-primary" onclick="location.reload()">Play Again</button>
+  </div>
+
+  <!-- Mobile Touch Controls -->
+  <div id="mobileControls">
+    <div id="joystickArea">
+      <div id="joystickKnob"></div>
+    </div>
+    <div id="mobileButtons">
+      <div class="mobile-btn" id="btnInteract" ontouchstart="mobileInteract(event)">👆</div>
+      <div class="mobile-btn mobile-btn-small" id="btnStats" ontouchstart="toggleStatScreen()">📊</div>
+    </div>
+  </div>
+
+  <!-- Camera & World -->
+  <div id="camera" style="position:absolute; width:100%; height:100%; overflow:hidden;">
+    <div id="world">
+      <!-- Weather overlay -->
+      <div id="weatherOverlay"></div>
+      <!-- Ambient entities container -->
+      <div id="ambientContainer"></div>
+      <!-- Roads -->
+      <div class="road road-h" style="width:2000px; left:200px; top:380px;"></div>
+      <div class="road road-h" style="width:1800px; left:400px; top:950px;"></div>
+      <div class="road road-v" style="height:700px; left:950px; top:380px;"></div>
+      <div class="road road-v" style="height:500px; left:1600px; top:320px;"></div>
+      <div class="road road-v" style="height:600px; left:2200px; top:600px;"></div>
+
+      <!-- Buildings with Turkish architecture details -->
+      <div class="building" id="teaShop">
+        <span class="lantern">🏮</span><span class="lantern">🏮</span>
+        🫖<br>Tea Shop<span class="building-label">Çay Evi</span>
+      </div>
+      <div class="building" id="apartment">
+        🏠<br>Apartment<span class="building-label">Daire</span>
+      </div>
+      <div class="building" id="languageSchool">
+        <span class="lantern">🏮</span><span class="lantern">🏮</span>
+        📚<br>Turkish School<span class="building-label">Dil Okulu</span>
+      </div>
+      <div class="building" id="communityCenter">
+        <span class="lantern">🏮</span><span class="lantern">🏮</span>
+        🤝<br>Community Center<span class="building-label">Toplum Merkezi</span>
+      </div>
+      <div class="building" id="mosque">
+        <div class="minaret" style="left:-16px; top:20px; height:80px;"></div>
+        <div class="minaret" style="right:-16px; top:20px; height:80px;"></div>
+        🕌<br>Neighborhood<span class="building-label">Mahalle Camii</span>
+      </div>
+      <div class="building" id="bazaar">
+        <span class="lantern">🏮</span><span class="lantern">🏮</span>
+        🛍️<br>Grand Bazaar<span class="building-label">Kapalıçarşı</span>
+      </div>
+      <div class="building" id="park">
+        🌳<br>City Park<span class="building-label">Şehir Parkı</span>
+      </div>
+      <div class="building" id="refugeeCenter">
+        🏥<br>Refugee Center<span class="building-label">Mülteci Merkezi</span>
+      </div>
+
+      <!-- Player (animated character) -->
+      <div class="character idle" id="player">
+        <div class="char-shadow"></div>
+        <div class="char-head"></div>
+        <div class="char-body"><span class="char-cross">✝</span></div>
+        <div class="char-feet"><div class="char-foot"></div><div class="char-foot"></div></div>
+      </div>
+
+      <!-- NPCs will be created by JS -->
+      <div id="npcContainer"></div>
+    </div>
+  </div>
+
+  <div id="minimap"><div id="minimapDot"></div></div>
+  <div id="seasonHud"><span class="season-icon" id="seasonIcon">🌸</span><span id="seasonText">Spring — Clear</span></div>
+</div>
+
+<script>
+
+// ===== GAME STATE =====
+const state = {
+  x: 350, y: 550, vx: 0, vy: 0,
+  maxSpeed: 5, accel: 0.6, friction: 0.82,
+  energy: 100, language: 0, trust: 0, faith: 50, helped: 0,
+  day: 1, maxDays: 28, week: 1,
+  timeSlot: 0, actionsThisSlot: 0, maxActionsPerSlot: 2,
+  completed: new Set(), journalEntries: [],
+  gameStarted: false, dialogueOpen: false, choicesOpen: false,
+  facing: 'down', isMoving: false, footstepTimer: 0,
+  // Economy
+  money: 3000, monthlyRent: 1500,
+  weeklyFoodCost: 0, weeklyTransport: 0, weeklySchoolCost: 0,
+  weeklyTeachingIncome: 0, weeklyDonations: 0,
+  totalEarned: 0, totalSpent: 0, englishStudents: 0,
+  donationLevel: 'standard', foodChoice: 'normal',
+  budgetModalOpen: false, pendingBudgetChoices: {},
+  // Season & Weather
+  season: 'spring', // spring, summer, ramadan, autumn, winter
+  weather: 'clear', // clear, rain, snow, hot
+  isRamadan: false, isEid: false
+};
+
+const timeSlots = ['Morning', 'Afternoon', 'Evening'];
+const timeEmojis = ['☀️', '🌤️', '🌙'];
+const keys = {};
+let activeInteractionEl = null;
+let activeInteractionType = null;
+
+// ===== NPC SYSTEM WITH INDIVIDUAL TRUST =====
+const npcData = [
+  {
+    id: 'npc0', name: 'Mehmet', emoji: '👨', color: '#ffb703',
+    homeX: 350, homeY: 200, wanderRadius: 120,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        'Mehmet glances at you curiously. "Merhaba. You are new here?"',
+        'Mehmet nods politely. "Welcome to the neighborhood."'
+      ]},
+      { minTrust: 15, lines: [
+        '"Ah, you again! Come, sit. Tea is ready." Mehmet remembers your name now.',
+        '"How is your Turkish coming? You are brave to try!" He laughs warmly.'
+      ]},
+      { minTrust: 35, lines: [
+        '"My friend! I told my wife about you. She wants to meet you." An invitation is forming.',
+        '"You know, most foreigners leave after a few months. But you stay. Why?" A deeper question.'
+      ]},
+      { minTrust: 55, lines: [
+        '"Come to dinner Friday. My family wants to know you." [INVITATION UNLOCKED]',
+        '"I trust you. You are not like the others who just pass through."'
+      ]},
+      { minTrust: 75, lines: [
+        '"My brother is struggling. He asks questions about life, about God. Would you talk to him?"',
+        '"You have become like family to us. Whatever you believe, I respect it deeply."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Greet him warmly', trustGain: 5, energy: -2, result: 'You exchange pleasantries. Small steps.' },
+      { minTrust: 0, text: 'Ask about his day', trustGain: 8, energy: -3, result: 'He tells you about his shop. Listening builds connection.' },
+      { minTrust: 20, text: 'Share a meal together (-30₺)', trustGain: 12, energy: -5, cost: 30, result: 'Over kebab, the conversation deepens. He asks about your family.' },
+      { minTrust: 40, text: 'Accept his dinner invitation', trustGain: 18, energy: -8, result: 'His wife made mantı. The whole family welcomes you. A milestone.' },
+      { minTrust: 60, text: 'Discuss faith openly', trustGain: 15, energy: -5, faithGain: 10, result: '"Tell me more about İsa (Jesus)," he says quietly. Years of trust led to this moment.' },
+      { minTrust: 80, text: 'Pray together', trustGain: 20, energy: -3, faithGain: 15, result: 'Mehmet bows his head. "Pray for my family." A sacred moment of trust.' }
+    ]
+  },
+
+  {
+    id: 'npc1', name: 'Elif', emoji: '👩', color: '#8ecae6',
+    homeX: 1200, homeY: 220, wanderRadius: 100,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        'A young woman glances up from her book. "Oh, hello. Are you a teacher here?"',
+        'Elif smiles shyly. "Your Turkish is... interesting." She means it kindly.'
+      ]},
+      { minTrust: 15, lines: [
+        '"Can you help me practice English? I want to study abroad someday."',
+        '"I like talking to you. You ask different questions than Turkish people."'
+      ]},
+      { minTrust: 35, lines: [
+        '"My parents are traditional. They wonder why I talk to a foreigner." She seems conflicted.',
+        '"In Turkey, we don\'t discuss religion openly. But I\'m curious about yours."'
+      ]},
+      { minTrust: 55, lines: [
+        '"My mother invited you for dinner. She makes the best mantı." [INVITATION UNLOCKED]',
+        '"I\'ve been reading about different faiths online. Can we talk privately?"'
+      ]},
+      { minTrust: 75, lines: [
+        '"I think I understand why you came here. It\'s not just about teaching English, is it?"',
+        '"I want to know more about Jesus. But please, don\'t tell my parents yet."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Help her with English', trustGain: 6, energy: -3, result: 'You correct her pronunciation gently. She appreciates the patience.' },
+      { minTrust: 0, text: 'Ask about her studies', trustGain: 7, energy: -2, result: 'She lights up talking about literature. Common ground.' },
+      { minTrust: 20, text: 'Share a coffee and talk (-20₺)', trustGain: 10, energy: -4, cost: 20, result: 'Over Turkish coffee, she opens up about her dreams and doubts.' },
+      { minTrust: 40, text: 'Discuss worldviews carefully', trustGain: 14, energy: -5, faithGain: 5, result: 'She asks thoughtful questions. You share honestly but gently.' },
+      { minTrust: 60, text: 'Give her a book to read', trustGain: 16, energy: -2, cost: 40, faithGain: 8, result: 'She takes the book carefully, hiding it in her bag. "I\'ll read it tonight."' },
+      { minTrust: 80, text: 'Study Scripture together', trustGain: 20, energy: -5, faithGain: 15, result: 'In a quiet café corner, you read together. Her eyes widen. "This is beautiful."' }
+    ]
+  },
+  {
+    id: 'npc2', name: 'Hasan Amca', emoji: '👴', color: '#ffafcc',
+    homeX: 1800, homeY: 600, wanderRadius: 60,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        'An old man sits on a bench, watching pigeons. He barely acknowledges you.',
+        'He nods slightly. Progress with elders takes time.'
+      ]},
+      { minTrust: 15, lines: [
+        '"Sit, sit." He offers sunflower seeds without looking at you.',
+        '"You walk past every day. At least you are consistent." A compliment, Turkish-style.'
+      ]},
+      { minTrust: 35, lines: [
+        '"Tell me about your country. Is it true everyone has a car?" He is curious.',
+        '"You are different from other foreigners. You stay. You listen."'
+      ]},
+      { minTrust: 55, lines: [
+        '"Come to my home for çay. My wife makes good börek." [INVITATION UNLOCKED]',
+        '"I lost my son years ago. Sometimes talking to you helps." He opens up.'
+      ]},
+      { minTrust: 75, lines: [
+        '"I had a dream last night. A man in white told me to listen to you. Strange, no?"',
+        '"Pray for me, friend. I am old and have many questions about what comes next."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Sit quietly beside him', trustGain: 5, energy: -2, result: 'Sometimes presence is enough. He seems to appreciate the company.' },
+      { minTrust: 0, text: 'Offer to buy him tea (-10₺)', trustGain: 7, energy: -2, cost: 10, result: 'He accepts with a grunt. "You have manners. Good."' },
+      { minTrust: 20, text: 'Ask about his life story', trustGain: 10, energy: -5, result: 'He fought in the army, raised five children. His eyes grow distant remembering.' },
+      { minTrust: 40, text: 'Visit his home for çay', trustGain: 15, energy: -8, result: 'His wife fusses over you. The börek is incredible. You feel like family.' },
+      { minTrust: 60, text: 'Share about hope and eternity', trustGain: 14, energy: -4, faithGain: 10, result: '"Hope," he repeats. "I haven\'t felt that in years. Tell me more."' },
+      { minTrust: 80, text: 'Read Scripture about eternal life', trustGain: 18, energy: -4, faithGain: 15, result: 'Tears form in his old eyes. "This is what I\'ve been searching for."' }
+    ]
+  },
+
+  {
+    id: 'npc3', name: 'Ahmad', emoji: '👨‍👩‍👧', color: '#a8e6cf',
+    homeX: 2400, homeY: 600, wanderRadius: 80,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        'A Syrian man looks at you warily. Refugees have learned to be cautious.',
+        'He nods but keeps his distance. Trust must be earned through action.'
+      ]},
+      { minTrust: 15, lines: [
+        '"You helped at the center. Thank you." His guard lowers slightly.',
+        '"My children like you. They ask when you will come back."'
+      ]},
+      { minTrust: 35, lines: [
+        '"We had everything in Syria. Now..." He trails off. The pain is real.',
+        '"Can you help my son with school? I cannot read the Turkish forms."'
+      ]},
+      { minTrust: 55, lines: [
+        '"Come eat with us. My wife makes Syrian bread like home." [INVITATION UNLOCKED]',
+        '"You are the first person here who treats us like humans, not problems."'
+      ]},
+      { minTrust: 75, lines: [
+        '"In Syria, I was Muslim. But after what happened... I have questions about God."',
+        '"My wife wants to know about your faith. She had a dream about a book."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Help with paperwork', trustGain: 8, energy: -5, helpGain: 2, result: 'You navigate bureaucratic forms together. Practical help builds trust.' },
+      { minTrust: 0, text: 'Play with his children', trustGain: 6, energy: -3, helpGain: 1, result: 'The kids laugh and teach you Arabic words. Joy needs no translation.' },
+      { minTrust: 20, text: 'Bring food supplies (-100₺)', trustGain: 14, energy: -4, cost: 100, helpGain: 3, result: 'His wife cries. "God sent you." The family eats well tonight.' },
+      { minTrust: 40, text: 'Help his son enroll in school', trustGain: 16, energy: -10, helpGain: 4, result: 'After hours of paperwork, his son is registered. Ahmad embraces you.' },
+      { minTrust: 60, text: 'Share your testimony', trustGain: 15, energy: -4, faithGain: 10, result: '"Your story gives me hope," Ahmad says. "Maybe God has not forgotten us."' },
+      { minTrust: 80, text: 'Study the Bible together', trustGain: 20, energy: -5, faithGain: 15, result: 'The whole family gathers. Ahmad reads aloud in Arabic. A house church is born.' }
+    ]
+  },
+  {
+    id: 'npc4', name: 'Zeynep', emoji: '🧑', color: '#dda0dd',
+    homeX: 400, homeY: 600, wanderRadius: 100,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        '"Are you the foreigner from upstairs? My children are so noisy, sorry!"',
+        'She waves from her doorway. Neighbors notice everything.'
+      ]},
+      { minTrust: 15, lines: [
+        '"My children want to learn English! Can you teach them sometime?"',
+        '"I made too much börek. Please, take some." Turkish generosity.'
+      ]},
+      { minTrust: 35, lines: [
+        '"Come for çay! I want to hear about your country." She is genuinely curious.',
+        '"My husband works long hours. It is nice to have someone to talk to."'
+      ]},
+      { minTrust: 55, lines: [
+        '"I heard you are... religious? What exactly do you believe?" [DEEP CONVERSATION UNLOCKED]',
+        '"My mother-in-law is sick. Do you know anyone who can help?"'
+      ]},
+      { minTrust: 75, lines: [
+        '"I read something you gave me. It made me cry. Can we talk about it?"',
+        '"I want what you have — that peace. How do I find it?"'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Chat in the hallway', trustGain: 5, energy: -2, result: 'Small talk about weather and children. Neighborly bonds form slowly.' },
+      { minTrust: 0, text: 'Offer to help with groceries', trustGain: 7, energy: -3, result: 'You carry her bags upstairs. She insists on giving you tea in return.' },
+      { minTrust: 20, text: 'Teach her kids English', trustGain: 12, energy: -6, helpGain: 1, result: 'The children adore you. Zeynep watches from the kitchen, smiling.' },
+      { minTrust: 40, text: 'Accept her çay invitation', trustGain: 14, energy: -5, result: 'Over three cups of tea, she shares her hopes and fears. Real friendship.' },
+      { minTrust: 60, text: 'Answer her faith questions', trustGain: 16, energy: -4, faithGain: 10, result: 'She listens intently. "No one has ever explained it like that before."' },
+      { minTrust: 80, text: 'Pray for her sick mother-in-law', trustGain: 18, energy: -3, faithGain: 12, result: 'You pray together. The next week, she reports improvement. "Your God heard us."' }
+    ]
+  },
+
+  {
+    id: 'npc5', name: 'Deniz Hoca', emoji: '👩‍🏫', color: '#87ceeb',
+    homeX: 1250, homeY: 550, wanderRadius: 90,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        '"Merhaba! You must be the new student. Turkish is hard but rewarding."',
+        '"Practice every day. Sabır — patience!" She is encouraging.'
+      ]},
+      { minTrust: 15, lines: [
+        '"Your pronunciation is improving! Damlaya damlaya göl olur — drop by drop."',
+        '"Most foreigners give up. I can see you are different."'
+      ]},
+      { minTrust: 35, lines: [
+        '"Let me introduce you to my family. They love meeting my students."',
+        '"Why do you stay in Turkey? Most people leave after a year."'
+      ]},
+      { minTrust: 55, lines: [
+        '"I want to understand your motivation. Is it just language, or something more?" [DEEP CONVERSATION UNLOCKED]',
+        '"Come to my home for dinner. My husband is a great cook." [INVITATION UNLOCKED]'
+      ]},
+      { minTrust: 75, lines: [
+        '"I have been thinking about what you shared. About purpose and meaning."',
+        '"My students ask about you. You have made an impression on this community."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Practice Turkish together', trustGain: 6, energy: -4, langGain: 8, result: 'She corrects you patiently. Every mistake is a learning opportunity.' },
+      { minTrust: 0, text: 'Ask for study tips', trustGain: 5, energy: -2, langGain: 5, result: '"Watch Turkish TV shows. Your ear will learn faster than your brain."' },
+      { minTrust: 20, text: 'Share why you came to Turkey', trustGain: 12, energy: -3, faithGain: 5, result: 'She listens thoughtfully. "That is a beautiful reason to be here."' },
+      { minTrust: 40, text: 'Accept dinner invitation', trustGain: 15, energy: -6, result: 'Her husband makes incredible lentil soup. The evening is warm and full of laughter.' },
+      { minTrust: 60, text: 'Discuss meaning and purpose', trustGain: 16, energy: -4, faithGain: 10, result: '"I teach language, but you teach something deeper," she says. "I want to understand."' },
+      { minTrust: 80, text: 'Give her a Turkish New Testament', trustGain: 18, energy: -2, faithGain: 12, cost: 30, result: 'She holds it carefully. "I will read this. I promise." A teacher becomes a student.' }
+    ]
+  },
+  {
+    id: 'npc6', name: 'Ayşe', emoji: '🧓', color: '#f0e68c',
+    homeX: 1800, homeY: 200, wanderRadius: 110,
+    trust: 0, maxTrust: 100, interactions: 0, memory: [],
+    dialogueTiers: [
+      { minTrust: 0, lines: [
+        'A woman walks her dog in the park. She smiles politely at you.',
+        '"Nice day for a walk, isn\'t it?" She seems open to conversation.'
+      ]},
+      { minTrust: 15, lines: [
+        '"I see you here often. Do you live nearby?" She is getting comfortable.',
+        '"I work at the university. What brings you to Istanbul?"'
+      ]},
+      { minTrust: 35, lines: [
+        '"I\'ve been thinking about what you said last time... about hope."',
+        '"Life is hard here. But talking with you helps." Friendship deepening.'
+      ]},
+      { minTrust: 55, lines: [
+        '"I want to understand your faith better. Can we talk more?" [DEEP CONVERSATION UNLOCKED]',
+        '"My friend group wants to meet you. They are curious about your perspective."'
+      ]},
+      { minTrust: 75, lines: [
+        '"I think I believe what you believe. But I am afraid to say it out loud."',
+        '"Can you connect me with other believers? I don\'t want to be alone in this."'
+      ]}
+    ],
+    choices: [
+      { minTrust: 0, text: 'Walk together in the park', trustGain: 6, energy: -3, result: 'A pleasant walk. She points out her favorite spots in the city.' },
+      { minTrust: 0, text: 'Ask about her work', trustGain: 5, energy: -2, result: 'She teaches sociology. Intellectual conversations come naturally.' },
+      { minTrust: 20, text: 'Meet for coffee (-25₺)', trustGain: 10, energy: -4, cost: 25, result: 'Over coffee, she shares her doubts about life. You listen more than speak.' },
+      { minTrust: 40, text: 'Share your story of faith', trustGain: 14, energy: -4, faithGain: 8, result: 'She asks deep questions. "How do you know it is real?" Honest dialogue.' },
+      { minTrust: 60, text: 'Introduce her to other believers', trustGain: 16, energy: -5, faithGain: 10, result: 'She meets a small group. "I am not alone," she whispers. Community forms.' },
+      { minTrust: 80, text: 'Disciple her in faith', trustGain: 20, energy: -6, faithGain: 18, result: 'She prays for the first time. Tears of joy. Years of patience bear fruit.' }
+    ]
+  }
+];
+
+// NPC runtime state (position, wandering, animation)
+const npcState = npcData.map(npc => ({
+  x: npc.homeX, y: npc.homeY,
+  vx: 0, vy: 0,
+  targetX: npc.homeX, targetY: npc.homeY,
+  wanderTimer: Math.random() * 120,
+  facing: 'down', isMoving: false,
+  idleTimer: 0
+}));
+
+// ===== LOCATIONS (same as before) =====
+const locations = [
+  { id: 'teaShop', name: 'Tea Shop', interactions: [{ title: 'At the Tea Shop...', choices: [
+    { text: 'Listen to stories over çay (-15₺)', effect: () => { state.trust += 12; state.energy -= 8; state.money -= 15; state.weeklyFoodCost += 15; }, result: 'Long conversations over tea are the heartbeat of Turkish culture.' },
+    { text: 'Practice Turkish with the owner', effect: () => { state.language += 10; state.trust += 5; state.energy -= 10; }, result: '"Çok güzel!" he says. Every conversation builds confidence.' },
+    { text: 'Treat everyone to tea (-50₺)', effect: () => { state.trust += 18; state.faith += 5; state.energy -= 5; state.money -= 50; state.weeklyFoodCost += 50; }, result: 'Generosity speaks louder than words here.' }
+  ]}]},
+  { id: 'languageSchool', name: 'Turkish School', interactions: [{ title: 'At the Language School...', choices: [
+    { text: 'Attend grammar class (-100₺)', effect: () => { state.language += 18; state.energy -= 15; state.money -= 100; state.weeklySchoolCost += 100; }, result: 'The subjunctive finally clicks. Worth the 100₺.' },
+    { text: 'Practice with classmates (free)', effect: () => { state.language += 12; state.trust += 5; state.energy -= 10; }, result: 'Classmates share tips for navigating daily life.' },
+    { text: 'Teach private English (+200₺)', effect: () => { state.money += 200; state.weeklyTeachingIncome += 200; state.trust += 5; state.energy -= 12; state.englishStudents++; }, result: 'A businessman pays 200₺ for a private hour.' },
+    { text: 'Study vocabulary (free)', effect: () => { state.language += 8; state.energy -= 8; }, result: 'Consistency pays off. Drop by drop, a lake forms.' }
+  ]}]},
+  { id: 'communityCenter', name: 'Community Center', interactions: [{ title: 'At the Community Center...', choices: [
+    { text: 'Help with food distribution', effect: () => { state.helped += 3; state.trust += 12; state.energy -= 18; }, result: 'A mother thanks you with tears in her eyes.' },
+    { text: 'Lead English class (+150₺)', effect: () => { state.helped += 2; state.trust += 8; state.language += 5; state.energy -= 12; state.englishStudents++; state.weeklyTeachingIncome += 150; state.money += 150; }, result: 'Teaching creates natural relationships — and income.' },
+    { text: 'Sit with someone lonely', effect: () => { state.trust += 15; state.faith += 8; state.energy -= 8; }, result: 'Sometimes listening matters more than speaking.' }
+  ]}]},
+  { id: 'apartment', name: 'Apartment', interactions: [{ title: 'Back at your apartment...', choices: [
+    { text: 'Pray and read the Bible', effect: () => { state.faith += 20; state.energy += 15; }, result: 'Faithfulness in small things matters deeply.' },
+    { text: 'Rest and recharge', effect: () => { state.energy = Math.min(100, state.energy + 35); }, result: 'The work here is a marathon, not a sprint.' },
+    { text: 'Video call supporters', effect: () => { state.faith += 10; state.energy += 10; checkDonationCall(); }, result: '' },
+    { text: 'Check finances', effect: () => { openBudgetReview(); }, result: '' },
+    { text: 'Sleep (End Day)', effect: () => { state.energy = Math.min(100, state.energy + 40); advanceDay(); }, result: '' }
+  ]}]},
+  { id: 'mosque', name: 'Neighborhood', interactions: [{ title: 'In the neighborhood...', choices: [
+    { text: 'Walk and greet neighbors', effect: () => { state.trust += 10; state.energy -= 5; }, result: 'Being a consistent, friendly presence builds trust.' },
+    { text: 'Visit a family for tea', effect: () => { state.trust += 15; state.energy -= 10; state.language += 5; }, result: 'Cultural understanding grows through shared meals.' },
+    { text: 'Observe local customs', effect: () => { state.trust += 5; state.language += 8; state.energy -= 5; }, result: 'Understanding the culture helps you serve with sensitivity.' }
+  ]}]},
+  { id: 'bazaar', name: 'Grand Bazaar', interactions: [{ title: 'At the Bazaar...', choices: [
+    { text: 'Buy groceries (-80₺)', effect: () => { state.language += 8; state.trust += 8; state.energy -= 8; state.money -= 80; state.weeklyFoodCost += 80; }, result: '"You are getting better!" the vendor laughs.' },
+    { text: 'Buy food to share (-150₺)', effect: () => { state.trust += 15; state.energy -= 8; state.money -= 150; state.weeklyFoodCost += 150; state.helped += 1; }, result: 'Hospitality costs money but builds deep bonds.' },
+    { text: 'Help a lost tourist', effect: () => { state.helped += 1; state.trust += 5; state.energy -= 5; }, result: 'A shopkeeper nods approvingly at your helpfulness.' },
+    { text: 'Café and people-watch (-20₺)', effect: () => { state.energy -= 3; state.faith += 5; state.money -= 20; state.weeklyFoodCost += 20; }, result: 'You pray quietly for the people passing by.' }
+  ]}]},
+  { id: 'park', name: 'City Park', interactions: [{ title: 'At the City Park...', choices: [
+    { text: 'Join backgammon players', effect: () => { state.trust += 12; state.language += 5; state.energy -= 8; }, result: 'Games break down barriers faster than formal introductions.' },
+    { text: 'Walk and pray', effect: () => { state.faith += 15; state.energy -= 5; }, result: 'You pray for this city and its people.' },
+    { text: 'Meet a friend for a walk', effect: () => { state.trust += 10; state.energy -= 5; state.faith += 5; }, result: 'Deep conversations take years to develop — but they are happening.' }
+  ]}]},
+  { id: 'refugeeCenter', name: 'Refugee Center', interactions: [{ title: 'At the Refugee Center...', choices: [
+    { text: 'Help with paperwork', effect: () => { state.helped += 4; state.trust += 10; state.energy -= 15; }, result: 'Practical help opens doors that words alone cannot.' },
+    { text: 'Teach Turkish to newcomers', effect: () => { state.helped += 2; state.language += 5; state.trust += 8; state.energy -= 12; }, result: 'Your own struggles help you empathize with their journey.' },
+    { text: 'Play with children', effect: () => { state.helped += 2; state.trust += 12; state.energy -= 8; state.faith += 5; }, result: 'A little girl draws you a picture. "Ev," she says proudly.' }
+  ]}]}
+];
+
+// ===== DAY EVENTS =====
+const dayEvents = {
+  1: { morning: 'Day 1: Spring in Istanbul. You have 3,000₺ — budget wisely. Build relationships one conversation at a time.' },
+  2: { morning: 'Day 2: A neighbor smiled at you. Small signs of acceptance.' },
+  3: { morning: 'Day 3: Rain patters on the cobblestones. A good day for tea indoors.' },
+  4: { morning: 'Day 4: Neighbors greet you by name. Consistency pays off.' },
+  5: { morning: 'Day 5: The rain clears. A family invited you for dinner.' },
+  6: { morning: 'Day 6: Loneliness weighs heavy today. This work requires patience.' },
+  7: { morning: 'Day 7: End of week 1. Time to review your budget.' },
+  8: { morning: 'Day 8: Ramadan begins! The neighborhood transforms with lights and decorations. Respect the fasting hours.' },
+  9: { morning: 'Day 9: During Ramadan, evenings come alive with iftar meals. A beautiful time to build community.' },
+  10: { morning: 'Day 10: Ramadan continues. Neighbors invite you to break fast together.' },
+  11: { morning: 'Day 11: The spirit of generosity during Ramadan opens many doors.' },
+  12: { morning: 'Day 12: Encouraging email from your sending church.' },
+  13: { morning: 'Day 13: Landlord reminds you: rent due at month end.' },
+  14: { morning: 'Day 14: 🎉 Eid celebrations! The streets are alive with joy, food, and family gatherings. Bayram Mübarek!' },
+  15: { morning: 'Day 15: Summer heat arrives. The city slows down in the afternoon warmth.' },
+  16: { morning: 'Day 16: Hot day. People seek shade and cold drinks. Adjust your schedule.' },
+  17: { morning: 'Day 17: Summer heat continues. Evening walks are more pleasant.' },
+  18: { morning: 'Day 18: The bazaar is quieter in the heat. Vendors fan themselves.' },
+  19: { morning: 'Day 19: Community center asks for more volunteer hours.' },
+  20: { morning: 'Day 20: A cooler day. The park fills with families enjoying the breeze.' },
+  21: { morning: 'Day 21: End of week 3. One more week until rent.' },
+  22: { morning: 'Day 22: Winter arrives suddenly. Cold rain sweeps through the streets.' },
+  23: { morning: 'Day 23: Rainy winter day. The tea shops are packed with people seeking warmth.' },
+  24: { morning: 'Day 24: ❄️ Snow in Istanbul! Rare and beautiful. Children play in the streets.' },
+  25: { morning: 'Day 25: Snow continues. The city looks magical but the cold bites.' },
+  26: { morning: 'Day 26: Cold rain returns. An unexpected gift arrives from home.' },
+  27: { morning: 'Day 27: Tomorrow is the last day. Reflect on seeds planted through all seasons.' },
+  28: { morning: 'Day 28: Final day. Snow falls gently. Rent is due. Time to settle accounts.' }
+};
+
+// ===== DOM REFERENCES =====
+const player = document.getElementById('player');
+const world = document.getElementById('world');
+const camera = document.getElementById('camera');
+const npcContainer = document.getElementById('npcContainer');
+
+// ===== CREATE NPC DOM ELEMENTS =====
+function createNpcElements() {
+  npcData.forEach((npc, i) => {
+    const el = document.createElement('div');
+    el.className = 'character npc-char idle';
+    el.id = npc.id;
+    el.style.left = npc.homeX + 'px';
+    el.style.top = npc.homeY + 'px';
+    el.innerHTML = `
+      <div class="npc-name">${npc.name}</div>
+      <div class="char-shadow"></div>
+      <div class="char-head" style="background:${npc.color}"></div>
+      <div class="char-body" style="background:${npc.color}"><span class="npc-emoji">${npc.emoji}</span></div>
+      <div class="char-feet"><div class="char-foot"></div><div class="char-foot"></div></div>
+      <div class="npc-trust-bar"><div class="npc-trust-fill" style="width:0%"></div></div>
+    `;
+    npcContainer.appendChild(el);
+  });
+}
+
+// ===== SEASON & WEATHER SYSTEM =====
+const seasonSchedule = [
+  // Days 1-7: Spring (clear/rain mix)
+  { day: 1, season: 'spring', weather: 'clear' },
+  { day: 3, season: 'spring', weather: 'rain' },
+  { day: 5, season: 'spring', weather: 'clear' },
+  // Days 8-14: Ramadan begins (warm, decorations)
+  { day: 8, season: 'ramadan', weather: 'clear', isRamadan: true },
+  { day: 10, season: 'ramadan', weather: 'clear', isRamadan: true },
+  { day: 14, season: 'ramadan', weather: 'clear', isRamadan: true, isEid: true },
+  // Days 15-21: Summer (hot)
+  { day: 15, season: 'summer', weather: 'hot', isRamadan: false, isEid: false },
+  { day: 17, season: 'summer', weather: 'hot' },
+  { day: 20, season: 'summer', weather: 'clear' },
+  // Days 22-28: Winter (cold, rain, snow)
+  { day: 22, season: 'winter', weather: 'rain' },
+  { day: 24, season: 'winter', weather: 'snow' },
+  { day: 26, season: 'winter', weather: 'rain' },
+  { day: 28, season: 'winter', weather: 'snow' }
+];
+
+function updateSeason() {
+  // Find the most recent schedule entry for current day
+  let entry = seasonSchedule[0];
+  for (const e of seasonSchedule) {
+    if (state.day >= e.day) entry = e;
+  }
+  state.season = entry.season;
+  state.weather = entry.weather;
+  if (entry.isRamadan !== undefined) state.isRamadan = entry.isRamadan;
+  if (entry.isEid !== undefined) state.isEid = entry.isEid;
+
+  updateWeatherEffects();
+  updateSeasonVisuals();
+  updateSeasonHud();
+}
+
+function updateSeasonHud() {
+  const icons = { spring: '🌸', summer: '☀️', ramadan: '🌙', autumn: '🍂', winter: '❄️' };
+  const weatherNames = { clear: 'Clear', rain: 'Rainy', snow: 'Snowing', hot: 'Hot' };
+  let label = state.season.charAt(0).toUpperCase() + state.season.slice(1);
+  if (state.isEid) label = 'Eid Celebrations!';
+  else if (state.isRamadan) label = 'Ramadan';
+  document.getElementById('seasonIcon').innerText = icons[state.season] || '🌤️';
+  document.getElementById('seasonText').innerText = `${label} — ${weatherNames[state.weather]}`;
+}
+
+function updateSeasonVisuals() {
+  // Adjust world ground color by season
+  const seasonBgs = {
+    spring: 'linear-gradient(180deg, #e8d5b0 0%, #d4b896 40%, #c9ad85 100%)',
+    summer: 'linear-gradient(180deg, #f0e0b8 0%, #e8d5a3 40%, #dcc890 100%)',
+    ramadan: 'linear-gradient(180deg, #d8c8a0 0%, #c9b88a 40%, #bfad7a 100%)',
+    winter: 'linear-gradient(180deg, #c8d4e0 0%, #b8c4d0 40%, #a8b8c8 100%)'
+  };
+  if (state.timeSlot !== 2) {
+    world.style.background = seasonBgs[state.season] || seasonBgs.spring;
+    // Re-apply tile pattern on top
+    world.style.backgroundImage = `
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px),
+      ${seasonBgs[state.season] || seasonBgs.spring}`;
+  } else {
+    world.style.background = '#2a2a4a';
+  }
+
+  // Adjust game sky background
+  if (state.timeSlot === 0) {
+    const skies = { spring: '#87ceeb', summer: '#5bc0de', ramadan: '#6b8cae', winter: '#8fa8c8' };
+    document.getElementById('game').style.background = skies[state.season] || '#87ceeb';
+  } else if (state.timeSlot === 1) {
+    const skies = { spring: '#f0a050', summer: '#e8a030', ramadan: '#d4883a', winter: '#8a9ab0' };
+    document.getElementById('game').style.background = skies[state.season] || '#f0a050';
+  }
+
+  // Ramadan decorations
+  updateRamadanDecorations();
+}
+
+function updateWeatherEffects() {
+  const overlay = document.getElementById('weatherOverlay');
+  overlay.innerHTML = '';
+
+  if (state.weather === 'rain') {
+    for (let i = 0; i < 80; i++) {
+      const drop = document.createElement('div');
+      drop.className = 'rain-drop';
+      drop.style.left = Math.random() * 2800 + 'px';
+      drop.style.top = Math.random() * -200 + 'px';
+      drop.style.height = (12 + Math.random() * 16) + 'px';
+      drop.style.animationDuration = (0.4 + Math.random() * 0.3) + 's';
+      drop.style.animationDelay = Math.random() * 2 + 's';
+      overlay.appendChild(drop);
+    }
+  } else if (state.weather === 'snow') {
+    for (let i = 0; i < 60; i++) {
+      const flake = document.createElement('div');
+      flake.className = 'snow-flake';
+      flake.style.left = Math.random() * 2800 + 'px';
+      flake.style.top = Math.random() * -100 + 'px';
+      flake.style.width = (4 + Math.random() * 5) + 'px';
+      flake.style.height = flake.style.width;
+      flake.style.animationDuration = (3 + Math.random() * 4) + 's';
+      flake.style.animationDelay = Math.random() * 5 + 's';
+      overlay.appendChild(flake);
+    }
+  } else if (state.weather === 'hot') {
+    const shimmer = document.createElement('div');
+    shimmer.className = 'heat-shimmer';
+    overlay.appendChild(shimmer);
+  }
+}
+
+let ramadanDecorations = [];
+function updateRamadanDecorations() {
+  // Remove old decorations
+  ramadanDecorations.forEach(el => el.remove());
+  ramadanDecorations = [];
+
+  if (state.isRamadan || state.isEid) {
+    const positions = [
+      { x: 280, y: 160 }, { x: 420, y: 160 }, { x: 1130, y: 160 },
+      { x: 1320, y: 160 }, { x: 1730, y: 480 }, { x: 1920, y: 480 },
+      { x: 630, y: 1060 }, { x: 810, y: 1060 }
+    ];
+    const colors = ['#ffd700', '#ff6b35', '#00d4aa', '#ff1493', '#7b68ee'];
+    positions.forEach((pos, i) => {
+      const light = document.createElement('div');
+      light.className = 'ramadan-light';
+      light.style.left = pos.x + 'px';
+      light.style.top = pos.y + 'px';
+      light.style.background = colors[i % colors.length];
+      light.style.animationDelay = (i * 0.3) + 's';
+      world.appendChild(light);
+      ramadanDecorations.push(light);
+    });
+
+    if (state.isEid) {
+      const bannerPositions = [
+        { x: 250, y: 160, text: '🎉 Bayram Mübarek!' },
+        { x: 1100, y: 160, text: '🌙 İyi Bayramlar!' },
+        { x: 1700, y: 480, text: '🎊 Eid Mubarak!' }
+      ];
+      bannerPositions.forEach(bp => {
+        const banner = document.createElement('div');
+        banner.className = 'eid-banner';
+        banner.style.left = bp.x + 'px';
+        banner.style.top = bp.y + 'px';
+        banner.innerText = bp.text;
+        world.appendChild(banner);
+        ramadanDecorations.push(banner);
+      });
+    }
+  }
+}
+
+// ===== AMBIENT ENTITIES SYSTEM =====
+const ambientEntities = [];
+const AMBIENT_CONFIG = {
+  pedestrians: { count: 8, emoji: ['🚶','🚶‍♀️','🧕','👳','🧔','👨‍💼'], speed: 0.6 },
+  buses: { count: 2, emoji: ['🚌'], speed: 2.5 },
+  cats: { count: 5, emoji: ['🐈','🐈‍⬛','🐱'], speed: 0.3 },
+  scooters: { count: 3, emoji: ['🛵','🏍️'], speed: 3.0 },
+  vendors: { count: 3, emoji: ['🧑‍🍳','👨‍🌾','🧓'], speed: 0.2 },
+  soccerKids: { count: 1, emoji: ['⚽'], speed: 0 },
+  crowd: { count: 6, emoji: ['👤','👥','🧑','👩'], speed: 0.4 }
+};
+
+function initAmbientEntities() {
+  const container = document.getElementById('ambientContainer');
+
+  // Pedestrians - walk along roads
+  for (let i = 0; i < AMBIENT_CONFIG.pedestrians.count; i++) {
+    const onRoadH = Math.random() > 0.4;
+    const ent = createAmbient('pedestrian', AMBIENT_CONFIG.pedestrians, onRoadH ? 'horizontal' : 'vertical');
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+
+  // Buses - horizontal roads only
+  for (let i = 0; i < AMBIENT_CONFIG.buses.count; i++) {
+    const ent = createAmbient('bus', AMBIENT_CONFIG.buses, 'horizontal');
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+
+  // Cats - wander near buildings
+  for (let i = 0; i < AMBIENT_CONFIG.cats.count; i++) {
+    const ent = createAmbient('cat', AMBIENT_CONFIG.cats, 'wander');
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+
+  // Scooters - roads
+  for (let i = 0; i < AMBIENT_CONFIG.scooters.count; i++) {
+    const ent = createAmbient('scooter', AMBIENT_CONFIG.scooters, 'horizontal');
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+
+  // Street vendors - near bazaar (new position)
+  for (let i = 0; i < AMBIENT_CONFIG.vendors.count; i++) {
+    const ent = createAmbient('vendor', AMBIENT_CONFIG.vendors, 'wander');
+    ent.x = 1100 + Math.random() * 250;
+    ent.y = 480 + Math.random() * 100;
+    ent.homeX = ent.x; ent.homeY = ent.y; ent.wanderRadius = 50;
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+
+  // Soccer kids - in the park (new position)
+  const soccerEnt = createSoccerGroup();
+  ambientEntities.push(soccerEnt);
+  container.appendChild(soccerEnt.el);
+
+  // Market crowd - near bazaar (new position)
+  for (let i = 0; i < AMBIENT_CONFIG.crowd.count; i++) {
+    const ent = createAmbient('crowd-person', AMBIENT_CONFIG.crowd, 'wander');
+    ent.x = 1050 + Math.random() * 350;
+    ent.y = 470 + Math.random() * 140;
+    ent.homeX = ent.x; ent.homeY = ent.y; ent.wanderRadius = 60;
+    ambientEntities.push(ent);
+    container.appendChild(ent.el);
+  }
+}
+
+function createAmbient(type, config, movement) {
+  const el = document.createElement('div');
+  el.className = 'ambient-entity ' + type;
+  const emoji = config.emoji[Math.floor(Math.random() * config.emoji.length)];
+  el.innerHTML = `${emoji}<div class="entity-shadow"></div>`;
+
+  let x, y, dirX = 1, dirY = 0;
+  if (movement === 'horizontal') {
+    const roads = [{ y: 390, w: 2000, startX: 200 }, { y: 960, w: 1800, startX: 400 }];
+    const road = roads[Math.floor(Math.random() * roads.length)];
+    x = road.startX + Math.random() * road.w;
+    y = road.y + Math.random() * 40;
+    dirX = Math.random() > 0.5 ? 1 : -1;
+  } else if (movement === 'vertical') {
+    const roads = [{ x: 960, h: 700, startY: 380 }, { x: 1610, h: 500, startY: 320 }];
+    const road = roads[Math.floor(Math.random() * roads.length)];
+    x = road.x + Math.random() * 40;
+    y = road.startY + Math.random() * road.h;
+    dirX = 0; dirY = Math.random() > 0.5 ? 1 : -1;
+  } else {
+    x = Math.random() * 2400 + 200;
+    y = Math.random() * 1200 + 200;
+  }
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  if (dirX < 0) el.style.transform = 'scaleX(-1)';
+
+  return {
+    el, type, x, y, dirX, dirY,
+    speed: config.speed * (0.7 + Math.random() * 0.6),
+    movement, homeX: x, homeY: y,
+    wanderRadius: 80, wanderTimer: Math.random() * 200,
+    targetX: x, targetY: y
+  };
+}
+
+function createSoccerGroup() {
+  const el = document.createElement('div');
+  el.className = 'ambient-entity soccer-group';
+  el.innerHTML = '👦👧👦<div class="soccer-ball">⚽</div><div class="entity-shadow"></div>';
+  const x = 1750 + Math.random() * 150;
+  const y = 150 + Math.random() * 100;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  return { el, type: 'soccer', x, y, dirX: 0, dirY: 0, speed: 0, movement: 'wander', homeX: x, homeY: y, wanderRadius: 40, wanderTimer: 100, targetX: x, targetY: y };
+}
+
+function updateAmbientEntities() {
+  ambientEntities.forEach(ent => {
+    if (ent.movement === 'horizontal') {
+      ent.x += ent.speed * ent.dirX;
+      // Wrap around
+      if (ent.x > 2800) { ent.x = -20; }
+      if (ent.x < -30) { ent.x = 2800; }
+    } else if (ent.movement === 'vertical') {
+      ent.y += ent.speed * ent.dirY;
+      if (ent.y > 1600) { ent.y = -20; }
+      if (ent.y < -30) { ent.y = 1600; }
+    } else if (ent.movement === 'wander') {
+      ent.wanderTimer--;
+      if (ent.wanderTimer <= 0) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * ent.wanderRadius;
+        ent.targetX = ent.homeX + Math.cos(angle) * dist;
+        ent.targetY = ent.homeY + Math.sin(angle) * dist;
+        ent.wanderTimer = 120 + Math.random() * 240;
+      }
+      const dx = ent.targetX - ent.x;
+      const dy = ent.targetY - ent.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 2) {
+        ent.x += (dx / dist) * ent.speed;
+        ent.y += (dy / dist) * ent.speed;
+        ent.dirX = dx > 0 ? 1 : -1;
+      }
+    }
+
+    ent.el.style.left = ent.x + 'px';
+    ent.el.style.top = ent.y + 'px';
+    if (ent.movement !== 'wander') {
+      ent.el.style.transform = ent.dirX < 0 ? 'scaleX(-1)' : '';
+    }
+  });
+
+  // Adjust crowd density based on season/time
+  adjustCrowdDensity();
+}
+
+function adjustCrowdDensity() {
+  // More people during Eid, fewer at night, more in summer evenings
+  ambientEntities.forEach(ent => {
+    if (ent.type === 'crowd-person' || ent.type === 'pedestrian') {
+      if (state.isEid) ent.el.style.opacity = '1';
+      else if (state.timeSlot === 2) ent.el.style.opacity = '0.3';
+      else ent.el.style.opacity = '0.7';
+    }
+  });
+}
+
+// ===== NPC WANDERING AI =====
+function updateNpcs() {
+  npcData.forEach((npc, i) => {
+    const ns = npcState[i];
+    const el = document.getElementById(npc.id);
+    if (!el) return;
+
+    // Freeze NPC if player is in dialogue/choices with them
+    const isFrozen = activeInteractionEl && activeInteractionEl.id === npc.id && (state.dialogueOpen || state.choicesOpen);
+
+    if (!isFrozen) {
+      // Wander timer
+      ns.wanderTimer--;
+      if (ns.wanderTimer <= 0) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * npc.wanderRadius;
+        ns.targetX = npc.homeX + Math.cos(angle) * dist;
+        ns.targetY = npc.homeY + Math.sin(angle) * dist;
+        ns.wanderTimer = 90 + Math.random() * 180;
+        ns.idleTimer = 30 + Math.random() * 60;
+      }
+
+      if (ns.idleTimer > 0) {
+        ns.idleTimer--;
+        ns.isMoving = false;
+      } else {
+        const dx = ns.targetX - ns.x;
+        const dy = ns.targetY - ns.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 3) {
+          const speed = 0.8;
+          ns.vx = (dx / dist) * speed;
+          ns.vy = (dy / dist) * speed;
+          ns.x += ns.vx;
+          ns.y += ns.vy;
+          ns.isMoving = true;
+          if (Math.abs(dx) > Math.abs(dy)) ns.facing = dx > 0 ? 'right' : 'left';
+          else ns.facing = dy > 0 ? 'down' : 'up';
+        } else {
+          ns.isMoving = false; ns.vx = 0; ns.vy = 0;
+        }
+      }
+    } else {
+      // Frozen: stop moving, face player
+      ns.isMoving = false; ns.vx = 0; ns.vy = 0;
+      const dx = state.x - ns.x;
+      if (Math.abs(dx) > 5) ns.facing = dx > 0 ? 'right' : 'left';
+    }
+
+    // Update DOM
+    el.style.left = ns.x + 'px';
+    el.style.top = ns.y + 'px';
+
+    // Animation classes
+    el.classList.toggle('walking', ns.isMoving);
+    el.classList.toggle('idle', !ns.isMoving);
+    el.classList.remove('facing-left', 'facing-right');
+    if (ns.facing === 'left') el.classList.add('facing-left');
+    if (ns.facing === 'right') el.classList.add('facing-right');
+
+    // Trust bar
+    const trustFill = el.querySelector('.npc-trust-fill');
+    if (trustFill) trustFill.style.width = (npc.trust / npc.maxTrust * 100) + '%';
+
+    // Nearby indicator
+    const px = state.x + 22, py = state.y + 28;
+    const nx = ns.x + 22, ny = ns.y + 28;
+    const playerDist = Math.sqrt((px - nx) ** 2 + (py - ny) ** 2);
+    el.classList.toggle('nearby', playerDist < 80);
+
+    // Talked today indicator
+    el.classList.toggle('talked-today', state.completed.has(npc.id + '_' + state.day));
+  });
+}
+
+// ===== PLAYER ANIMATION =====
+function updatePlayerAnimation() {
+  const isMoving = Math.abs(state.vx) > 0.3 || Math.abs(state.vy) > 0.3;
+  state.isMoving = isMoving;
+
+  player.classList.toggle('walking', isMoving);
+  player.classList.toggle('idle', !isMoving);
+  player.classList.remove('facing-left', 'facing-right');
+  if (state.facing === 'left') player.classList.add('facing-left');
+  if (state.facing === 'right') player.classList.add('facing-right');
+
+  // Footstep particles
+  if (isMoving) {
+    state.footstepTimer++;
+    if (state.footstepTimer % 12 === 0) {
+      spawnFootstep(state.x + 18 + Math.random() * 8, state.y + 52);
+    }
+  }
+}
+
+function spawnFootstep(fx, fy) {
+  const dot = document.createElement('div');
+  dot.className = 'footstep';
+  dot.style.left = fx + 'px';
+  dot.style.top = fy + 'px';
+  world.appendChild(dot);
+  setTimeout(() => dot.remove(), 800);
+}
+
+// ===== GAME FUNCTIONS =====
+function startGame() {
+  document.getElementById('intro').style.display = 'none';
+  state.gameStarted = true;
+  createNpcElements();
+  initAmbientEntities();
+  updateSeason();
+  showJournal(dayEvents[1].morning);
+  updateWorldAppearance();
+  update();
+}
+
+function updateHud() {
+  document.getElementById('day').innerText = state.day;
+  document.getElementById('timeSlot').innerText = timeSlots[state.timeSlot];
+  document.getElementById('energy').innerText = Math.max(0, Math.round(state.energy));
+  document.getElementById('language').innerText = Math.min(100, Math.round(state.language));
+  document.getElementById('trust').innerText = Math.round(state.trust);
+  document.getElementById('faith').innerText = Math.round(state.faith);
+  document.getElementById('helped').innerText = state.helped;
+  document.getElementById('energyBar').style.width = Math.max(0, state.energy) + '%';
+  document.getElementById('langBar').style.width = Math.min(100, state.language) + '%';
+  document.getElementById('trustBar').style.width = Math.min(100, state.trust) + '%';
+  document.getElementById('faithBar').style.width = Math.min(100, state.faith) + '%';
+  document.getElementById('timeOfDay').innerText = timeEmojis[state.timeSlot] + ' ' + timeSlots[state.timeSlot];
+  document.getElementById('money').innerText = Math.round(state.money);
+  document.getElementById('week').innerText = state.week;
+  const moneyEl = document.getElementById('money');
+  moneyEl.style.color = state.money >= 500 ? '#06d6a0' : state.money >= 0 ? '#ffd166' : '#ef476f';
+  document.getElementById('moneyWarning').style.display = state.money < 500 ? 'block' : 'none';
+  updateMissionText();
+  const dot = document.getElementById('minimapDot');
+  dot.style.left = (state.x / 2800 * 154) + 'px';
+  dot.style.top = (state.y / 1600 * 84) + 'px';
+  if (state.energy <= 15 && state.energy > 0) showJournal('⚠️ Exhausted. Return to apartment.');
+  if (state.energy <= 0) { state.energy = 5; showDialogue('Exhaustion', 'You need to go home and rest.', ''); }
+}
+
+function updateMissionText() {
+  const el = document.getElementById('mission');
+  const maxNpcTrust = Math.max(...npcData.map(n => n.trust));
+  if (maxNpcTrust >= 60) el.innerText = '🌟 Deep friendships forming. Doors are opening for meaningful conversations.';
+  else if (state.trust >= 30) el.innerText = 'People recognize and trust you. Keep investing in relationships.';
+  else el.innerText = "Meet people, learn Turkish, and serve the community.";
+}
+
+function updateWorldAppearance() {
+  world.style.background = state.timeSlot === 2 ? '#3a3a5a' : '#d4b896';
+  document.getElementById('game').style.background = state.timeSlot === 0 ? '#87ceeb' : state.timeSlot === 1 ? '#f0a050' : '#1a1a3e';
+}
+
+function advanceTime() {
+  state.actionsThisSlot++;
+  if (state.actionsThisSlot >= state.maxActionsPerSlot) {
+    state.timeSlot++;
+    state.actionsThisSlot = 0;
+    if (state.timeSlot > 2) { advanceDay(); return; }
+    updateWorldAppearance();
+    showJournal(timeEmojis[state.timeSlot] + ' ' + timeSlots[state.timeSlot] + ' has arrived.');
+  }
+}
+
+function advanceDay() {
+  state.day++; state.timeSlot = 0; state.actionsThisSlot = 0;
+  state.completed.clear(); updateWorldAppearance(); updateSeason();
+  if (state.day > 1 && (state.day - 1) % 7 === 0) { state.week++; showWeeklyBudget(); return; }
+  if (state.day > state.maxDays) { payRent(); return; }
+  if ([5,12,19,26].includes(state.day)) receiveDonation();
+  state.money -= 10; state.weeklyTransport += 10;
+  state.energy = Math.min(100, state.energy + 30);
+  if (dayEvents[state.day]) showDialogue('New Day', dayEvents[state.day].morning, '');
+}
+
+// ===== ECONOMY =====
+function receiveDonation() {
+  let amount = 0, message = '';
+  if (state.donationLevel === 'standard') { amount = 400 + Math.floor(Math.random() * 200); message = `💌 Church wired ${amount}₺! Faithful support.`; }
+  else if (state.donationLevel === 'reduced') { amount = 200 + Math.floor(Math.random() * 100); message = `💌 Smaller donation: ${amount}₺.`; }
+  else { amount = Math.floor(Math.random() * 50); if (amount > 0) message = `💌 Small gift: ${amount}₺.`; }
+  if (amount > 0) { state.money += amount; state.weeklyDonations += amount; state.totalEarned += amount; showDonationNotif(message); }
+}
+function showDonationNotif(text) { const n = document.getElementById('donationNotif'); n.innerText = text; n.style.display = 'block'; setTimeout(() => n.style.display = 'none', 3500); }
+function checkDonationCall() {
+  if (Math.random() > 0.5) { const b = 100 + Math.floor(Math.random() * 150); state.money += b; state.weeklyDonations += b; showDialogue('Supporters', `Church prays for you. Extra gift of ${b}₺ coming!`, ''); }
+  else showDialogue('Supporters', 'Church prays for your neighbors by name. You feel less alone.', '');
+}
+function openBudgetReview() { showWeeklyBudget(); }
+function showWeeklyBudget() {
+  state.budgetModalOpen = true; state.choicesOpen = true;
+  document.getElementById('choices').style.display = 'none';
+  document.getElementById('budgetModal').style.display = 'flex';
+  document.getElementById('budgetWeekLabel').innerText = `End of Week ${state.week} — Financial Review`;
+  document.getElementById('budgetRent').innerText = `-${Math.round(state.monthlyRent / 4)}₺`;
+  document.getElementById('budgetFood').innerText = `-${state.weeklyFoodCost}₺`;
+  document.getElementById('budgetTransport').innerText = `-${state.weeklyTransport}₺`;
+  document.getElementById('budgetSchool').innerText = `-${state.weeklySchoolCost}₺`;
+  document.getElementById('budgetTeaching').innerText = `+${state.weeklyTeachingIncome}₺`;
+  document.getElementById('budgetDonations').innerText = `+${state.weeklyDonations}₺`;
+  document.getElementById('budgetBalance').innerHTML = `<div>Balance: <strong style="color:${state.money >= 500 ? '#06d6a0' : '#ef476f'}">${state.money}₺</strong></div><div style="font-size:12px;color:#888;">Rent: ${state.monthlyRent}₺/month</div>`;
+  renderBudgetChoices();
+}
+function renderBudgetChoices() {
+  const container = document.getElementById('budgetChoicesContainer');
+  state.pendingBudgetChoices = { food: state.foodChoice, housing: 'current' };
+  const choices = [
+    { category: 'food', options: [
+      { id: 'frugal', name: '🥖 Eat frugally', desc: 'Save money, less energy.', cost: '-50₺/wk' },
+      { id: 'normal', name: '🍽️ Eat normally', desc: 'Balanced meals.', cost: '-120₺/wk' },
+      { id: 'generous', name: '🫖 Eat & host', desc: 'Share with neighbors. +trust.', cost: '-250₺/wk' }
+    ]},
+    { category: 'housing', options: [
+      { id: 'current', name: '🏠 Keep apartment', desc: 'Close to community.', cost: '1,500₺/mo' },
+      { id: 'cheaper', name: '🏚️ Cheaper place', desc: 'Save money, lose trust.', cost: '1,000₺/mo' },
+      { id: 'roommate', name: '👥 Roommate', desc: 'Split rent, less privacy.', cost: '800₺/mo' }
+    ]}
+  ];
+  container.innerHTML = '';
+  choices.forEach(cat => {
+    const d = document.createElement('div'); d.style.marginBottom = '12px';
+    cat.options.forEach(opt => {
+      const div = document.createElement('div');
+      div.className = 'budget-choice' + (state.pendingBudgetChoices[cat.category] === opt.id ? ' selected' : '');
+      div.innerHTML = `<div class="choice-info"><div class="choice-name">${opt.name}</div><div class="choice-desc">${opt.desc}</div></div><div class="choice-cost">${opt.cost}</div>`;
+      div.onclick = () => { state.pendingBudgetChoices[cat.category] = opt.id; renderBudgetChoices(); };
+      d.appendChild(div);
+    });
+    container.appendChild(d);
+  });
+}
+function confirmBudget() {
+  state.foodChoice = state.pendingBudgetChoices.food;
+  if (state.foodChoice === 'frugal') state.energy = Math.max(10, state.energy - 5);
+  else if (state.foodChoice === 'generous') { state.trust += 10; state.money -= 130; }
+  const h = state.pendingBudgetChoices.housing;
+  if (h === 'cheaper') { state.monthlyRent = 1000; state.trust = Math.max(0, state.trust - 5); }
+  else if (h === 'roommate') { state.monthlyRent = 800; state.energy = Math.max(10, state.energy - 5); }
+  else state.monthlyRent = 1500;
+  state.weeklyFoodCost = 0; state.weeklyTransport = 0; state.weeklySchoolCost = 0;
+  state.weeklyTeachingIncome = 0; state.weeklyDonations = 0;
+  state.budgetModalOpen = false; state.choicesOpen = false;
+  document.getElementById('budgetModal').style.display = 'none';
+  if (state.day <= state.maxDays) { state.energy = Math.min(100, state.energy + 30); if (dayEvents[state.day]) showDialogue('New Day', dayEvents[state.day].morning, ''); }
+}
+function payRent() {
+  state.money -= state.monthlyRent; state.totalSpent += state.monthlyRent;
+  if (state.money < 0) { showDialogue('Month End', `Rent due. You are ${Math.abs(Math.round(state.money))}₺ short! Borrowed from a friend.`, ''); state.faith = Math.max(10, state.faith - 15); }
+  else showDialogue('Month End', `Paid rent: ${state.monthlyRent}₺. Balance: ${Math.round(state.money)}₺.`, '');
+  setTimeout(() => endGame(), 100);
+}
+
+function endGame() {
+  document.getElementById('endScreen').style.display = 'flex';
+  const fc = state.money >= 0 ? '#06d6a0' : '#ef476f';
+  const npcSummary = npcData.map(n => `<div class="stat-row"><span>${n.name}:</span><span>Trust ${n.trust}/${n.maxTrust}</span></div>`).join('');
+  document.getElementById('finalStats').innerHTML = `
+    <div class="stat-row"><span>Days:</span><span>${state.maxDays}</span></div>
+    <div class="stat-row"><span>Turkish:</span><span>${Math.min(100, Math.round(state.language))}%</span></div>
+    <div class="stat-row"><span>Community Trust:</span><span>${Math.round(state.trust)}</span></div>
+    <div class="stat-row"><span>Faith:</span><span>${Math.round(state.faith)}</span></div>
+    <div class="stat-row"><span>People Helped:</span><span>${state.helped}</span></div>
+    <div class="stat-row"><span>Balance:</span><span style="color:${fc}">${Math.round(state.money)}₺</span></div>
+    <div class="stat-row"><span>── Relationships ──</span><span></span></div>
+    ${npcSummary}`;
+  const msg = document.getElementById('endMessage');
+  const maxT = Math.max(...npcData.map(n => n.trust));
+  if (maxT >= 70 && state.money >= 0) msg.innerText = '🌟 Deep relationships formed. Faith conversations happening. Finances stable. Outstanding month!';
+  else if (maxT >= 40) msg.innerText = 'Meaningful friendships growing. Seeds planted through patience and presence.';
+  else if (state.money < 0) msg.innerText = 'Finances were tight. Consider more teaching or communicating needs to supporters.';
+  else msg.innerText = 'Every journey begins with small steps. These relationships will deepen over time.';
+}
+
+// ===== DIALOGUE & CHOICES =====
+function showDialogue(speaker, text, trustInfo) {
+  state.dialogueOpen = true;
+  document.getElementById('dialogue').style.display = 'block';
+  document.getElementById('dialogueSpeaker').innerText = speaker;
+  document.getElementById('dialogueText').innerText = text;
+  document.getElementById('dialogueTrust').innerText = trustInfo || '';
+}
+function closeDialogue() { state.dialogueOpen = false; document.getElementById('dialogue').style.display = 'none'; }
+
+function showChoices(location) {
+  state.choicesOpen = true;
+  const interaction = location.interactions[0];
+  document.getElementById('choices').style.display = 'block';
+  document.getElementById('choicesTitle').innerText = interaction.title;
+  const container = document.getElementById('choicesContainer');
+  container.innerHTML = '';
+  interaction.choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerText = choice.text;
+    btn.onclick = () => selectChoice(location, i);
+    container.appendChild(btn);
+  });
+}
+
+function selectChoice(location, index) {
+  const choice = location.interactions[0].choices[index];
+  choice.effect();
+  state.choicesOpen = false;
+  document.getElementById('choices').style.display = 'none';
+  if (choice.result) showDialogue(location.name, choice.result, '');
+  advanceTime();
+  state.journalEntries.push({ day: state.day, time: timeSlots[state.timeSlot], location: location.name, action: choice.text });
+}
+
+// ===== NPC INTERACTION (trust-based choices) =====
+function showNpcChoices(npc) {
+  state.choicesOpen = true;
+  document.getElementById('choices').style.display = 'block';
+  document.getElementById('choicesTitle').innerText = `Talking with ${npc.name} (Trust: ${npc.trust}/${npc.maxTrust})`;
+  const container = document.getElementById('choicesContainer');
+  container.innerHTML = '';
+  npc.choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    const locked = npc.trust < choice.minTrust;
+    if (locked) {
+      btn.innerHTML = `<span class="lock-icon">🔒</span> ${choice.text} <span style="font-size:11px;color:#888;">(Need trust ${choice.minTrust})</span>`;
+      btn.disabled = true;
+    } else {
+      btn.innerText = choice.text;
+    }
+    btn.onclick = () => { if (!locked) selectNpcChoice(npc, i); };
+    container.appendChild(btn);
+  });
+}
+
+function selectNpcChoice(npc, index) {
+  const choice = npc.choices[index];
+  // Apply effects
+  npc.trust = Math.min(npc.maxTrust, npc.trust + choice.trustGain);
+  npc.interactions++;
+  npc.memory.push({ day: state.day, choice: choice.text });
+  state.energy += (choice.energy || 0);
+  state.trust += Math.round(choice.trustGain / 2);
+  if (choice.cost) { state.money -= choice.cost; state.weeklyFoodCost += choice.cost; }
+  if (choice.faithGain) state.faith += choice.faithGain;
+  if (choice.langGain) state.language += choice.langGain;
+  if (choice.helpGain) state.helped += choice.helpGain;
+
+  state.choicesOpen = false;
+  document.getElementById('choices').style.display = 'none';
+
+  const trustInfo = `♥ Trust with ${npc.name}: ${npc.trust}/${npc.maxTrust}`;
+  showDialogue(npc.name, choice.result, trustInfo);
+  advanceTime();
+}
+
+function showJournal(text) {
+  const j = document.getElementById('journal'), jt = document.getElementById('journalText');
+  j.style.display = 'block'; jt.innerText = text;
+  setTimeout(() => j.style.display = 'none', 4000);
+}
+
+// ===== STAT SCREEN =====
+function openStatScreen() {
+  document.getElementById('statScreen').style.display = 'flex';
+  renderStatScreen();
+}
+function closeStatScreen() {
+  document.getElementById('statScreen').style.display = 'none';
+}
+function renderStatScreen() {
+  const grid = document.getElementById('statNpcGrid');
+  grid.innerHTML = '';
+  npcData.forEach(npc => {
+    const trustPct = Math.round(npc.trust / npc.maxTrust * 100);
+    const tier = [...npc.dialogueTiers].reverse().find(t => npc.trust >= t.minTrust);
+    const nextTier = npc.dialogueTiers.find(t => t.minTrust > npc.trust);
+    const tierLabel = getTrustTierLabel(npc.trust);
+    const nextUnlock = nextTier ? `Next unlock at trust ${nextTier.minTrust}` : 'Max relationship reached!';
+    const lastMemory = npc.memory.length > 0 ? npc.memory[npc.memory.length - 1] : null;
+
+    const card = document.createElement('div');
+    card.className = 'stat-npc-card';
+    card.innerHTML = `
+      <div class="npc-card-header">
+        <div class="npc-card-emoji" style="background:${npc.color}">${npc.emoji}</div>
+        <div>
+          <div class="npc-card-name">${npc.name}</div>
+          <div class="npc-card-desc">${getDescForNpc(npc)}</div>
+        </div>
+      </div>
+      <div class="npc-card-trust-bar"><div class="npc-card-trust-fill" style="width:${trustPct}%"></div></div>
+      <div class="npc-card-stats">
+        <span>Trust: ${npc.trust}/${npc.maxTrust}</span>
+        <span>Met ${npc.interactions}x</span>
+      </div>
+      <div class="npc-card-tier">🏷️ ${tierLabel} — ${nextUnlock}</div>
+      ${lastMemory ? `<div class="npc-card-memory">Last: Day ${lastMemory.day} — "${lastMemory.choice}"</div>` : '<div class="npc-card-memory">Haven\'t interacted yet</div>'}
+    `;
+    grid.appendChild(card);
+  });
+}
+function getTrustTierLabel(trust) {
+  if (trust >= 75) return 'Deep Friend — Faith conversations open';
+  if (trust >= 55) return 'Trusted — Invitations & deep talks';
+  if (trust >= 35) return 'Familiar — Personal questions';
+  if (trust >= 15) return 'Acquaintance — Friendly';
+  return 'Stranger — Just met';
+}
+function getDescForNpc(npc) {
+  const descs = { npc0: 'Tea shop owner', npc1: 'University student', npc2: 'Elderly neighbor', npc3: 'Syrian refugee family', npc4: 'Curious neighbor', npc5: 'Turkish teacher', npc6: 'Thoughtful friend' };
+  return descs[npc.id] || '';
+}
+
+// ===== INTERACTIONS (touch-based, walk-away closes) =====
+function isTouchingBuilding(el) {
+  const r = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+  return state.x + 44 > r.x && state.x < r.x + r.w && state.y + 56 > r.y && state.y < r.y + r.h;
+}
+function isTouchingNpc(ns) {
+  const dx = (state.x + 22) - (ns.x + 22);
+  const dy = (state.y + 28) - (ns.y + 28);
+  return Math.sqrt(dx * dx + dy * dy) < 44;
+}
+
+function checkWalkAway() {
+  if (!activeInteractionEl) return;
+  let still = false;
+  if (activeInteractionType === 'building') still = isTouchingBuilding(activeInteractionEl);
+  else if (activeInteractionType === 'npc') {
+    const idx = npcData.findIndex(n => n.id === activeInteractionEl.id);
+    if (idx >= 0) still = isTouchingNpc(npcState[idx]);
+  }
+  if (!still) {
+    if (state.dialogueOpen) closeDialogue();
+    if (state.choicesOpen && !state.budgetModalOpen) { state.choicesOpen = false; document.getElementById('choices').style.display = 'none'; }
+    activeInteractionEl = null; activeInteractionType = null;
+  }
+}
+
+function checkInteractions() {
+  checkWalkAway();
+  if (state.choicesOpen || state.budgetModalOpen) return;
+
+  // Buildings
+  locations.forEach(loc => {
+    const el = document.getElementById(loc.id);
+    if (!el) return;
+    const touching = isTouchingBuilding(el);
+    el.classList.toggle('active-nearby', touching);
+    if (touching && !state.completed.has(loc.id + '_' + state.timeSlot)) {
+      state.completed.add(loc.id + '_' + state.timeSlot);
+      activeInteractionEl = el; activeInteractionType = 'building';
+      showChoices(loc);
+    }
+  });
+
+  // NPCs
+  npcData.forEach((npc, i) => {
+    const ns = npcState[i];
+    const el = document.getElementById(npc.id);
+    if (!el) return;
+    const touching = isTouchingNpc(ns);
+    if (touching && !state.completed.has(npc.id + '_' + state.day)) {
+      state.completed.add(npc.id + '_' + state.day);
+      el.classList.add('talked-today');
+      activeInteractionEl = el; activeInteractionType = 'npc';
+
+      // Show trust-based dialogue first, then choices
+      const tier = [...npc.dialogueTiers].reverse().find(t => npc.trust >= t.minTrust);
+      const line = tier.lines[Math.floor(Math.random() * tier.lines.length)];
+      const trustInfo = `♥ Trust: ${npc.trust}/${npc.maxTrust} | Met ${npc.interactions} times`;
+      showDialogue(npc.name, line, trustInfo);
+
+      // After dialogue closes, show choices (use a flag)
+      const origClose = closeDialogue;
+      closeDialogue = function() {
+        state.dialogueOpen = false;
+        document.getElementById('dialogue').style.display = 'none';
+        closeDialogue = origClose; // restore
+        // Check if still touching to show choices
+        if (isTouchingNpc(ns)) showNpcChoices(npc);
+      };
+    }
+  });
+}
+
+// ===== MOVEMENT (smooth acceleration) & MAIN LOOP =====
+function update() {
+  if (!state.gameStarted) return;
+
+  if (!state.budgetModalOpen) {
+    // Smooth acceleration
+    let ax = 0, ay = 0;
+    if (keys['w'] || keys['arrowup']) ay -= state.accel;
+    if (keys['s'] || keys['arrowdown']) ay += state.accel;
+    if (keys['a'] || keys['arrowleft']) ax -= state.accel;
+    if (keys['d'] || keys['arrowright']) ax += state.accel;
+
+    state.vx += ax;
+    state.vy += ay;
+
+    // Friction
+    if (ax === 0) state.vx *= state.friction;
+    if (ay === 0) state.vy *= state.friction;
+
+    // Clamp speed
+    const spd = Math.sqrt(state.vx * state.vx + state.vy * state.vy);
+    if (spd > state.maxSpeed) { state.vx = (state.vx / spd) * state.maxSpeed; state.vy = (state.vy / spd) * state.maxSpeed; }
+
+    // Stop jitter
+    if (Math.abs(state.vx) < 0.1) state.vx = 0;
+    if (Math.abs(state.vy) < 0.1) state.vy = 0;
+
+    state.x += state.vx;
+    state.y += state.vy;
+    state.x = Math.max(0, Math.min(2756, state.x));
+    state.y = Math.max(0, Math.min(1544, state.y));
+
+    // Facing direction
+    if (Math.abs(state.vx) > 0.3 || Math.abs(state.vy) > 0.3) {
+      if (Math.abs(state.vx) > Math.abs(state.vy)) state.facing = state.vx > 0 ? 'right' : 'left';
+      else state.facing = state.vy > 0 ? 'down' : 'up';
+    }
+
+    player.style.left = state.x + 'px';
+    player.style.top = state.y + 'px';
+
+    // Smooth camera
+    const tx = state.x - window.innerWidth / 2 + 22;
+    const ty = state.y - window.innerHeight / 2 + 28;
+    camera.scrollLeft += (tx - camera.scrollLeft) * 0.08;
+    camera.scrollTop += (ty - camera.scrollTop) * 0.08;
+  }
+
+  updatePlayerAnimation();
+  updateNpcs();
+  updateAmbientEntities();
+  checkInteractions();
+  updateHud();
+  requestAnimationFrame(update);
+}
+
+// ===== INPUT =====
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if ((e.key === 'Enter' || e.key === ' ') && state.dialogueOpen) closeDialogue();
+  if (e.key === 'Tab') { e.preventDefault(); toggleStatScreen(); }
+  if (e.key === 'Escape') { closeStatScreen(); }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function toggleStatScreen() {
+  const ss = document.getElementById('statScreen');
+  if (ss.style.display === 'flex') closeStatScreen();
+  else openStatScreen();
+}
+
+// ===== MOBILE TOUCH CONTROLS =====
+let joystickActive = false;
+let joystickX = 0, joystickY = 0;
+const joystickArea = document.getElementById('joystickArea');
+const joystickKnob = document.getElementById('joystickKnob');
+
+if (joystickArea) {
+  joystickArea.addEventListener('touchstart', handleJoystickStart, { passive: false });
+  joystickArea.addEventListener('touchmove', handleJoystickMove, { passive: false });
+  joystickArea.addEventListener('touchend', handleJoystickEnd, { passive: false });
+  joystickArea.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
+}
+
+function handleJoystickStart(e) {
+  e.preventDefault();
+  joystickActive = true;
+  handleJoystickMove(e);
+}
+
+function handleJoystickMove(e) {
+  if (!joystickActive) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const rect = joystickArea.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const maxDist = rect.width / 2 - 25;
+
+  let dx = touch.clientX - centerX;
+  let dy = touch.clientY - centerY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  // Clamp to circle
+  if (dist > maxDist) {
+    dx = (dx / dist) * maxDist;
+    dy = (dy / dist) * maxDist;
+  }
+
+  // Normalize to -1..1
+  joystickX = dx / maxDist;
+  joystickY = dy / maxDist;
+
+  // Move knob visually
+  joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+  // Map to keys
+  keys['arrowleft'] = joystickX < -0.3;
+  keys['arrowright'] = joystickX > 0.3;
+  keys['arrowup'] = joystickY < -0.3;
+  keys['arrowdown'] = joystickY > 0.3;
+}
+
+function handleJoystickEnd(e) {
+  e.preventDefault();
+  joystickActive = false;
+  joystickX = 0;
+  joystickY = 0;
+  joystickKnob.style.transform = 'translate(-50%, -50%)';
+  keys['arrowleft'] = false;
+  keys['arrowright'] = false;
+  keys['arrowup'] = false;
+  keys['arrowdown'] = false;
+}
+
+function mobileInteract(e) {
+  if (e) e.preventDefault();
+  // Close dialogue if open
+  if (state.dialogueOpen) { closeDialogue(); return; }
+  // Close choices if open
+  if (state.choicesOpen && !state.budgetModalOpen) {
+    state.choicesOpen = false;
+    document.getElementById('choices').style.display = 'none';
+    return;
+  }
+}
+
+// Prevent iOS Safari bounce/zoom
+document.addEventListener('touchmove', e => {
+  if (e.target.closest('#budgetModal') || e.target.closest('#statScreen') || e.target.closest('#endScreen')) return;
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+// Prevent double-tap zoom
+let lastTap = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) e.preventDefault();
+  lastTap = now;
+}, { passive: false });
+</script>
+</body>
+</html>
